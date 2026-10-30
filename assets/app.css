@@ -44,6 +44,7 @@ button{cursor:pointer}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:20px;overflow:hidden;height:38px;background:var(--card)}
 .seg button{border:0;border-radius:0;background:transparent;padding:0 16px;font-weight:500;color:var(--ink2);height:auto;border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
+.pin{display:inline-flex;align-items:center;gap:8px}
 .seg button.on{background:var(--tonal);color:var(--tonal-ink)}
 .seg button:not(.on):hover{background:var(--soft)}
 .lg{margin-left:auto;font-size:13px;color:var(--ink2);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
@@ -136,8 +137,12 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
  .sb{transform:translateX(-105%);width:280px;box-shadow:none;visibility:hidden;pointer-events:none;transition:transform .3s cubic-bezier(.2,.7,.2,1),visibility .3s,background .3s}.sb.open{transform:none;visibility:visible;pointer-events:auto;box-shadow:8px 0 30px rgba(0,0,0,.3)}
  .main{margin-left:0}.menu,.ftog{display:grid}
  .hd .row1{padding:10px 12px 6px;gap:6px}.hd h1{font-size:19px}.hd .sub{display:none}
- .fb{display:none;padding:4px 14px 14px;gap:10px 12px}.fb.open{display:flex}
+ .fb{display:flex;gap:10px 12px;max-height:0;opacity:0;visibility:hidden;overflow:hidden;padding:0 14px;transition:max-height .3s ease,opacity .25s ease,padding .3s ease,visibility .3s}.fb.open{max-height:80vh;opacity:1;visibility:visible;padding:4px 14px 14px;overflow:auto}
  .fb label{flex:1 1 140px}.fb select,.fb input{width:100%}.lg{margin-left:0;width:100%}
+ .fb label{min-width:0}.fb label:has(.seg),.fb label:has(.pin){flex:1 1 100%}
+ .fb .seg{display:flex;width:100%}.fb .seg button{flex:1;padding:0 8px}
+ .fb .pin{display:flex;width:100%}.fb .pin>span:not(:has(.dp-b)){flex:none}.fb .pin>span:has(.dp-b){flex:1 1 0;min-width:0}
+ .fb .dp-b{width:100%;min-width:0;padding:0 8px;gap:6px;font-size:14px}.fb .dp-b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
  .ct{padding:12px 12px 90px}
  .grid{gap:12px}.card{padding:14px;border-radius:14px}.card h2{font-size:15.5px}
  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -146,6 +151,11 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
  .ins{grid-template-columns:1fr}.ql{grid-template-columns:1fr 1fr}
  th,td{padding:9px 9px}table{font-size:13px}.scroll,.scroll.t{max-height:430px}
  td.n{min-width:150px}
+ td:has(>.pn){white-space:normal;min-width:176px;max-width:190px;position:sticky;left:0;z-index:5;background:var(--card);box-shadow:1px 0 0 var(--line)}
+ td.bar{isolation:isolate}
+ th.l:first-child{position:sticky;left:0;top:0;z-index:6;box-shadow:1px 0 0 var(--line)}
+ tbody tr:hover td:has(>.pn){background:var(--soft)}
+ .pn{align-items:flex-start;gap:8px}.pn .pimg{width:30px;height:30px;flex:none}.pn b{font-size:13px;overflow-wrap:anywhere}.pn small{display:block;font-size:11.5px;line-height:1.3;margin-top:2px;overflow-wrap:anywhere}
  input,select{font-size:16px}
  .tools{flex-direction:column;align-items:stretch}.tools input,.tools select{width:100%}.tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;max-width:100%}.tabs button{white-space:nowrap}
  .two{grid-template-columns:1fr 1fr}
@@ -183,8 +193,8 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
 .cp-t:hover{background:var(--soft)}
 .cp-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;justify-items:center}
 .cp-g.cp-w span{font-size:11.5px;font-weight:600;color:var(--mute);height:28px;display:grid;place-items:center}
-.cp-g.cp-m{grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 0}
-.cp-d{width:38px;height:38px;border-radius:50%;border:0;background:transparent;color:var(--ink);font-size:13.5px;padding:0;display:grid;place-items:center;transition:background .15s}
+.cp-g.cp-m{grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 0;min-height:266px;align-content:space-around}
+.cp-g>span:empty{height:38px}.cp-d{width:38px;height:38px;border-radius:50%;border:0;background:transparent;color:var(--ink);font-size:13.5px;padding:0;display:grid;place-items:center;transition:background .15s}
 .cp-d:hover:not(:disabled){background:var(--soft)}.cp-d:disabled{opacity:.28;cursor:default}
 .cp-d.td{box-shadow:inset 0 0 0 1.5px var(--a);color:var(--a)}
 .cp-d.sel{background:var(--a);color:#fff;font-weight:600;box-shadow:none}
@@ -193,7 +203,7 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
 .cp-f{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
 .cp-f button{border:0;background:transparent;color:var(--a);font-weight:600;font-size:13.5px;height:34px;padding:0 12px;border-radius:17px}.cp-f button:hover{background:var(--tonal)}
 .cal-pop.sheet{position:fixed;left:0;right:0;bottom:0;width:auto;border-radius:22px 22px 0 0;padding:16px 16px calc(12px + env(safe-area-inset-bottom));animation:sheetin .25s cubic-bezier(.2,.7,.2,1);z-index:95}
-.cal-pop.sheet .cp-g{gap:4px}.cal-pop.sheet .cp-d{width:100%;max-width:44px;height:44px;font-size:15px}
+.cal-pop.sheet .cp-g{gap:4px}.cal-pop.sheet .cp-g>span:empty{height:44px}.cal-pop.sheet .cp-d{width:100%;max-width:44px;height:44px;font-size:15px}
 @keyframes popin{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes sheetin{from{transform:translateY(100%)}to{transform:none}}
 @media(max-width:900px){.fb .dd,.fb .dp-b{width:100%}.fb .dd-b{min-width:0}.tools .dd{width:100%}}
@@ -236,3 +246,115 @@ table.cmp th{white-space:nowrap;word-break:normal}
 /* page appears smoothly after the loading screen */
 .main,.sb,.btm,.lg-bg{animation:shellin .5s cubic-bezier(.2,.7,.2,1) both}
 @keyframes shellin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* wide comparison tables on phones: keep each value on one line, scroll sideways, pin first column */
+@media(max-width:900px){
+ .card .tw:has(>table.cmp){overflow-x:auto}
+ .card table.cmp{width:max-content;min-width:100%}
+ .card table.cmp th,.card table.cmp td{white-space:nowrap;word-break:normal;padding:8px 10px}
+ .card table.cmp td:first-child,.card table.cmp th:first-child{position:sticky;left:0;background:var(--card);box-shadow:1px 0 0 var(--line)}
+ .card table.cmp td:first-child{z-index:5}.card table.cmp th:first-child{z-index:6}
+}
+/* ---------- language toggle ---------- */
+.langb{height:38px;padding:0 16px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:14px;white-space:nowrap}
+.langb.on{background:var(--a);color:#fff;border-color:transparent}
+:root[data-theme="dark"] .langb.on{color:#0d1b33}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .langb.on{color:#0d1b33}}
+/* ---------- Tamil mode: bigger, bolder, simpler ---------- */
+html.ta body,html.ta button,html.ta select,html.ta input{font-family:'Noto Sans Tamil','Inter',system-ui,sans-serif}
+html.ta body{font-size:17px;font-weight:600;line-height:1.65}
+html.ta .hd h1{font-size:26px;font-weight:800}
+html.ta .card h2,html.ta h2{font-size:20px;font-weight:800;line-height:1.4}
+html.ta .sb nav a{font-size:17px;font-weight:700;height:54px}
+html.ta .sb .grp{font-size:13px;font-weight:700;letter-spacing:0}
+html.ta .k .l{font-size:15px;font-weight:700}html.ta .k .v{font-size:30px;font-weight:800}
+html.ta table{font-size:16px}html.ta td{font-weight:600}html.ta th{font-size:15px;font-weight:800;color:var(--ink2)}
+html.ta th,html.ta td{padding-top:14px;padding-bottom:14px}
+html.ta select,html.ta input,html.ta button,html.ta .dp-b,html.ta .dd-b{font-size:16px;font-weight:700;min-height:46px}
+html.ta .seg button{padding:0 20px}
+html.ta .cp-d{font-weight:700;font-size:15px}
+html.ta .ql a b{font-size:17px;font-weight:800}html.ta .ql a span{font-size:15px;font-weight:600}
+html.ta .btm a,html.ta .btm button{font-size:13px;font-weight:700}
+/* simple view: hide small print and the comparison controls */
+html.ta .cap,html.ta .hd .sub,html.ta .note{display:none}
+html.ta .fb label:has(#cmp),html.ta #bWrap{display:none!important}
+html.ta .tw,html.ta .scroll{scrollbar-width:auto}
+/* sort arrow drawn with CSS so it looks the same in every font (Tamil font showed a big glyph) */
+th.sorted:after,th.sorted.asc:after{content:"";display:inline-block;width:0;height:0;margin-left:6px;vertical-align:middle;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--a);border-bottom:0}
+th.sorted.asc:after{border-top:0;border-bottom:5px solid var(--a)}
+/* ---------- Tamil mode: side panel ---------- */
+html.ta{--sbw:300px}
+html.ta .sb .logo{padding:18px 22px 4px}
+html.ta .sb .tagl{font-size:14px;font-weight:700;color:var(--ink2);padding:2px 22px 10px;letter-spacing:0}
+html.ta .sb nav{padding:4px 12px 12px}
+html.ta .sb nav a{height:auto;min-height:52px;padding:8px 16px;gap:14px;border-radius:16px;font-size:17px;font-weight:700;line-height:1.4;margin-bottom:2px;white-space:normal}
+html.ta .sb nav a svg{width:24px;height:24px;stroke-width:2}
+html.ta .sb nav a.on{font-weight:800;box-shadow:inset 4px 0 0 var(--a)}
+html.ta .sb .grp{font-size:14px;font-weight:800;color:var(--ink2);margin:18px 14px 6px;letter-spacing:0;text-transform:none;padding-bottom:4px;border-bottom:2px solid var(--line)}
+html.ta .sb .ft{font-size:14.5px;font-weight:600;line-height:1.7;padding:14px 22px 18px}
+html.ta .sb .ft b{font-weight:800;color:var(--ink)}
+html.ta .so{height:46px;font-size:15px;font-weight:700;padding:0 18px;border-radius:23px}
+@media(max-width:900px){html.ta .sb{width:min(320px,88vw)}html.ta .main{margin-left:0}}
+/* ---------- Tamil mode: top bar title ---------- */
+html.ta .hd .row1{gap:10px;align-items:center}
+html.ta .hd .row1>div:not(.sp){min-width:0;flex:0 1 auto}
+html.ta .hd h1{font-size:23px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0;padding:2px 0}
+html.ta .langb{height:42px;padding:0 14px;font-size:15px;flex:none}
+html.ta .hd .ibtn{flex:none}
+@media(max-width:900px){html.ta .hd .row1{padding:10px 12px 8px;gap:8px}html.ta .hd h1{font-size:19px}html.ta .langb{height:40px;padding:0 12px;font-size:14px}}
+@media(max-width:380px){html.ta .hd h1{font-size:17px}html.ta .langb{padding:0 10px}}
+/* Tamil mode: segmented buttons must stay inside their box */
+html.ta .seg{height:auto;max-width:100%;overflow:hidden}
+html.ta .seg button{flex:1 1 auto;min-height:46px;height:auto;padding:6px 14px;white-space:nowrap;line-height:1.4}
+html.ta .ch .seg{max-width:100%}
+@media(max-width:900px){html.ta .ch .seg{display:flex;width:100%}html.ta .seg button{padding:6px 8px;font-size:15px}}
+/* ---------- item drawer: always-visible Close button, no sideways scroll ---------- */
+.drawer{padding:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.drawer #dbody{padding:6px 22px 28px;min-width:0}
+.drawer .dtop{position:sticky;top:0;z-index:10;display:flex;justify-content:flex-end;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.drawer .dclose{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 20px 0 16px;border:0;border-radius:22px;background:var(--a);color:#fff;font-size:15px;font-weight:700;box-shadow:var(--shadow)}
+.drawer .dclose:hover{filter:brightness(1.08)}
+.drawer .dclose svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
+:root[data-theme="dark"] .drawer .dclose{color:#0d1b33}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .drawer .dclose{color:#0d1b33}}
+.drawer h3,.drawer .mute,.drawer .tag,.drawer .k,.drawer .k .l,.drawer .k .v{min-width:0;overflow-wrap:anywhere}
+.drawer .tw,.drawer .scroll{max-width:100%}
+@media(max-width:900px){.drawer #dbody{padding:4px 14px 24px}.drawer{width:100vw}}
+html.ta .drawer .dclose{height:48px;font-size:16px}
+html.ta .drawer h3{font-size:21px;line-height:1.5;font-weight:800;margin-right:0}
+html.ta .drawer .k .v{font-size:24px}
+html.ta .drawer .kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+html.ta .drawer .tag{white-space:normal}
+html.ta .main{overflow-x:clip}
+/* ---------- product-group panel table: readable, scrolls sideways, Rate column pinned ---------- */
+.drawer .tw:has(>table.cmp){overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.drawer table.cmp{width:max-content;min-width:100%}
+.drawer table.cmp th,.drawer table.cmp td{white-space:nowrap;word-break:normal;padding:10px 12px}
+.drawer table.cmp td.n{white-space:normal;min-width:170px;max-width:240px;overflow-wrap:anywhere;line-height:1.4}
+.drawer table.cmp td:first-child,.drawer table.cmp th:first-child{position:sticky;left:0;background:var(--card);box-shadow:1px 0 0 var(--line)}
+.drawer table.cmp td:first-child{z-index:5}.drawer table.cmp th:first-child{z-index:6}
+.drawer table.cmp tbody tr:hover td:first-child{background:var(--soft)}
+html.ta .drawer table.cmp td.n{min-width:190px;font-size:15px}
+html.ta .drawer table.cmp th{font-size:14px}
+html.ta .drawer .tk{font-size:16px;line-height:1.7}
+html.ta .drawer .mute{font-size:14px!important;font-weight:600}
+/* ---------- Tamil mode: Profit page and shared tiles ---------- */
+html.ta .tools label{text-transform:none!important;letter-spacing:0!important;font-size:15px!important;font-weight:700;color:var(--ink2)!important}
+html.ta .tools .mute,html.ta #lh{font-size:15px!important;font-weight:600;line-height:1.6}
+html.ta #mcat{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+html.ta #mcat>div{flex-wrap:wrap;gap:8px 10px}html.ta #mcat span{font-size:16px!important;font-weight:700}html.ta #mcat input{width:90px!important}
+html.ta #bn{font-size:16px;line-height:1.85}html.ta #bn b{font-weight:800}
+html.ta .kpis .k .v{font-size:clamp(21px,2.1vw,28px);overflow-wrap:anywhere}
+html.ta .k .c,html.ta .k .l{overflow-wrap:anywhere;white-space:normal;line-height:1.45}html.ta .k .c{font-size:13.5px;font-weight:600}
+html.ta .two{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}html.ta .two .k .v{font-size:clamp(19px,1.8vw,24px)}
+html.ta .tk{font-size:16px;line-height:1.75}html.ta .tk b{font-weight:800}
+html.ta .card{min-width:0;overflow-wrap:anywhere}
+@media(max-width:900px){html.ta .kpis .k .v{font-size:22px}html.ta #mcat{grid-template-columns:1fr}html.ta .tools{align-items:stretch!important}}
+/* ---------- Tamil mode: bottom bar (phones) ---------- */
+@media(max-width:900px){
+ html.ta .btm{padding:6px 2px calc(8px + env(safe-area-inset-bottom));gap:2px;align-items:stretch;box-shadow:0 -2px 10px rgba(0,0,0,.08)}
+ html.ta .btm a,html.ta .btm button{min-width:0;min-height:62px;justify-content:center;gap:3px;padding:4px 2px;font-size:13px;font-weight:700;line-height:1.5;text-align:center;border-radius:14px}
+ html.ta .btm a span,html.ta .btm button span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 0}
+ html.ta .btm svg{width:26px;height:26px}
+ html.ta .btm a.on{color:var(--tonal-ink);font-weight:800}
+ html.ta .btm a.on svg{width:52px;height:32px;padding:4px;border-radius:16px}
+ html.ta .ct{padding-bottom:110px}
+}
+@media(max-width:360px){html.ta .btm a,html.ta .btm button{font-size:12px}html.ta .btm a.on svg{width:46px}}

@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a73e8'/%3E%3Ctext x='32' y='45' font-size='38' font-weight='700' text-anchor='middle' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/app.css?v=20261048">
 <script>(function(){try{var t=localStorage.getItem('sss-theme');var q=new URLSearchParams(location.search).get('theme');if(q==='light'||q==='dark')t=q;if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script>
 <meta name="theme-color" content="#1a73e8">
 <style>
@@ -33,12 +33,14 @@ html[data-theme="dark"] #boot{background:#171717;color:#9aa0a6}html[data-theme="
 <div id="boot" role="status" aria-live="polite"><div class="bt-in"><div class="bt-stage"><img class="bt-logo" src="assets/logo-red.png" alt="Madipakkam Saravana Stores"></div><div class="bt-bar"><b></b></div><div class="bt-msg"><span>Reading your sales data…</span><span>Counting bills and stock…</span><span>Drawing your charts…</span></div></div></div>
 <script src="assets/chart.min.js"></script>
 <script src="assets/data.js"></script>
-<script src="assets/app.js"></script>
+<script src="assets/ta.js?v=20261048"></script><script src="assets/app.js?v=20261048"></script>
 <script>
 // Profit (estimate)
 const {rs,rsf,inr,pill,pc,kpis,chart,axes,tip,D,F,css,S,table,openItem,esc,catIcon,prodImg,MG,mg,setMargin,exTax}=App;
 const LO=30,HI=40;
-const BANNER=`<div class="card rv" style="margin-bottom:16px;border-left:4px solid var(--warn)"><b>Estimate, not accounting.</b> RPOS has no real purchase cost (its purchase price is just 80% or 50% of MRP). Everything on this page applies <b>your own margin assumption</b> — default <b>35%</b> (your 30–40% range) on sales <b>excluding GST</b>. Change the margin below and every number updates.</div>`;
+const BANNER=`<div class="card rv" id="bn" style="margin-bottom:16px;border-left:4px solid var(--warn)"></div>`;
+const BANNER_EN=`<b>Estimate, not accounting.</b> RPOS has no real purchase cost (its purchase price is just 80% or 50% of MRP). Everything on this page applies <b>your own margin assumption</b> — default <b>30%</b> (your 30–40% range) on sales <b>excluding GST</b>. Change the margin below and every number updates.`,BANNER_TA=`<b>மதிப்பீடு மட்டுமே, கணக்கு அல்ல.</b> RPOS-ல் உண்மையான கொள்முதல் விலை இல்லை (கொள்முதல் விலை MRP-ல் 80% அல்லது 50% மட்டுமே). இந்தப் பக்கத்தில் உள்ள எல்லா எண்களும் <b>நீங்கள் வைத்த லாப சதவீதத்தை</b> (இயல்பு <b>30%</b>) <b>GST தவிர்த்த</b> விற்பனையில் கணக்கிடுகின்றன. கீழே லாப சதவீதத்தை மாற்றினால் எல்லா எண்களும் மாறும்.`;
+const T=App.T;
 // monthly ex-tax by category (all time)
 const MC={};{const months=[];let c=App.FIRST.slice(0,7);while(c<=App.LAST.slice(0,7)){months.push(c);c=App.addMonths(c,1)}const mi={};months.forEach((m,i)=>mi[m]=i);
  MC.months=months;MC.cat=D.cats.map(()=>new Array(months.length).fill(0));MC.bills=new Array(months.length).fill(0);MC.days=new Array(months.length).fill(0);
@@ -47,7 +49,7 @@ const MC={};{const months=[];let c=App.FIRST.slice(0,7);while(c<=App.LAST.slice(
 App.page({title:'Profit (estimate)',sub:'Gross profit estimated from your 30–40% margin, on sales excluding GST',show:false,
 build(){return BANNER+`<div class="card rv" style="margin-bottom:16px"><div class="ch"><div><h2>Margin assumption</h2><div class="cap">Default for all categories, with optional overrides. Saved in this browser.</div></div></div>
  <div class="tools" style="align-items:flex-end"><label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--mute);display:flex;flex-direction:column;gap:3px">Default margin % <input id="mdef" type="number" min="1" max="80" step="0.5" style="width:120px"></label>
- <div class="seg"><button data-p="30">30%</button><button data-p="35">35%</button><button data-p="40">40%</button></div><span class="mute" style="font-size:13px">Low / high band shown elsewhere uses ${LO}% and ${HI}%.</span></div>
+ <div class="seg"><button data-p="30">30%</button><button data-p="35">35%</button><button data-p="40">40%</button></div><span class="mute" id="lh" style="font-size:13px"></span></div>
  <div class="ins" id="mcat" style="margin-top:12px"></div></div>
 <div class="kpis" id="kp"></div>
 <div class="grid">
@@ -59,8 +61,9 @@ build(){return BANNER+`<div class="card rv" style="margin-bottom:16px"><div clas
 </div>`},
 update(A,B){
  const mdef=document.getElementById('mdef');mdef.value=MG.def;
+ document.getElementById('bn').innerHTML=T(BANNER_EN,BANNER_TA);document.getElementById('lh').textContent=T('Low / high band shown elsewhere uses '+LO+'% and '+HI+'%.','மற்ற இடங்களில் குறைந்த / அதிக வரம்பு '+LO+'% மற்றும் '+HI+'%.');
  const apply=()=>{App.cur._run(true)};
- mdef.onchange=()=>{const v=Math.max(1,Math.min(80,+mdef.value||35));setMargin(v);apply()};
+ mdef.onchange=()=>{const v=Math.max(1,Math.min(80,+mdef.value||30));setMargin(v);apply()};
  document.querySelectorAll('[data-p]').forEach(b=>{b.classList.toggle('on',+b.dataset.p===MG.def&&!Object.keys(MG.cat).length);b.onclick=()=>{setMargin(+b.dataset.p,{});apply()}});
  document.getElementById('mcat').innerHTML=D.cats.map((c,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px"><span style="color:var(--a)">${catIcon(i,20)}</span><span style="flex:1;font-size:13.5px">${esc(c)}</span><input data-c="${i}" type="number" min="1" max="80" step="0.5" value="${Math.round(mg(i)*1000)/10}" style="width:78px"><span class="mute">%</span></div>`).join('');
  document.querySelectorAll('#mcat input').forEach(inp=>inp.onchange=()=>{const cat=Object.assign({},MG.cat);cat[inp.dataset.c]=Math.max(1,Math.min(80,+inp.value||MG.def));setMargin(MG.def,cat);apply()});
@@ -78,7 +81,7 @@ update(A,B){
  const col=months.map(m=>sel.has(m+'a')?css('--a'):sel.has(m+'b')?css('--b'):css('--c9'));
  chart('cM',{type:'bar',data:{labels:months,datasets:[{label:'Est. gross profit',data:profit,backgroundColor:col,borderRadius:6,borderSkipped:false,order:2},{label:'at '+LO+'%',type:'line',data:exm.map(x=>x*LO/100),borderColor:css('--ink2'),borderDash:[4,4],borderWidth:1.4,pointRadius:0,order:1},{label:'at '+HI+'%',type:'line',data:exm.map(x=>x*HI/100),borderColor:css('--ink2'),borderDash:[4,4],borderWidth:1.4,pointRadius:0,order:1}]},options:{scales:axes({yfmt:rs}),plugins:{tooltip:tip(rs),legend:{display:true,labels:{usePointStyle:true,boxWidth:8,color:css('--ink2')}}}}});
  const last12=profit.slice(-13,-1).reduce((s,x)=>s+x,0);
- document.getElementById('t1').innerHTML=`Over the last 12 full months estimated gross profit is about <b>${rs(last12)}</b> (${rs(exm.slice(-13,-1).reduce((s,x)=>s+x,0)*LO/100)} – ${rs(exm.slice(-13,-1).reduce((s,x)=>s+x,0)*HI/100)} at 30–40%). Since go-live: <b>${rs(profit.reduce((s,x)=>s+x,0))}</b>.`;
+ {const ex12=exm.slice(-13,-1).reduce((s,x)=>s+x,0),lo=rs(ex12*LO/100),hi=rs(ex12*HI/100),all=rs(profit.reduce((s,x)=>s+x,0));document.getElementById('t1').innerHTML=T(`Over the last 12 full months estimated gross profit is about <b>${rs(last12)}</b> (${lo} – ${hi} at 30–40%). Since go-live: <b>${all}</b>.`,`கடந்த 12 முழு மாதங்களில் மதிப்பிட்ட மொத்த லாபம் சுமார் <b>${rs(last12)}</b> (30–40% இல் ${lo} – ${hi}). தொடக்கம் முதல்: <b>${all}</b>.`)}
  // by category
  const rows=Object.entries(A.cat).map(([c,v])=>({c:+c,n:D.cats[c],ex:v[3],m:mg(+c)*100,p:v[3]*mg(+c),q:v[1],b:B&&B.cat[c]?B.cat[c][3]*mg(+c):0})).sort((a,b)=>b.p-a.p);
  const tp=rows.reduce((s,r)=>s+r.p,0)||1,mx=rows.length?rows[0].p:1;
@@ -91,7 +94,7 @@ update(A,B){
  D.items.forEach((it,k)=>{if(!it[F.instock]||it[F.posq]<=0)return;const ex=exTax(it,it[F.posq]*it[F.mrp]),cost=ex*(1-mg(it[F.cat]));posEx+=ex;posCost+=cost;if(!sold180.has(k))deadCost+=cost;const cv=v90[k]?it[F.net]/(v90[k]/90):null;if(cv&&cv>365)overCost+=cost});
  const cogs12=exm.slice(-13,-1).reduce((s,x)=>s+x,0)-last12,turns=posCost?cogs12/posCost:0;
  document.getElementById('inv').innerHTML=`<div class="two"><div class="k"><div class="l">Stock at cost (est.)</div><div class="v">${rs(posCost)}</div><div class="c">${rs(posEx)} at MRP excl. GST</div></div><div class="k warn"><div class="l">Dead stock at cost</div><div class="v">${rs(deadCost)}</div><div class="c">${(deadCost/posCost*100).toFixed(0)}% of stock — no sale in 180 days</div></div><div class="k"><div class="l">Overstock at cost</div><div class="v">${rs(overCost)}</div><div class="c">1+ year of cover</div></div><div class="k"><div class="l">Stock turns / year</div><div class="v">${turns.toFixed(1)}×</div><div class="c">12-month COGS ÷ stock at cost</div></div></div><div class="note">Negative stock is ignored here (only positive stock is counted), so true stock value is uncertain until the negatives are cleaned up.</div>`;
- document.getElementById('t2').innerHTML=`About <b>${rs(deadCost)}</b> of cash sits in items that have not sold for 6 months. Gross profit earned per ₹1 of stock held ≈ <b>₹${posCost?(last12/posCost).toFixed(2):'—'}</b> a year.`;
+ {const g=posCost?(last12/posCost).toFixed(2):'—';document.getElementById('t2').innerHTML=T(`About <b>${rs(deadCost)}</b> of cash sits in items that have not sold for 6 months. Gross profit earned per ₹1 of stock held ≈ <b>₹${g}</b> a year.`,`சுமார் <b>${rs(deadCost)}</b> பணம் 6 மாதமாக விற்காத பொருட்களில் முடங்கியுள்ளது. ₹1 இருப்புக்கு ஆண்டுக்கு கிடைக்கும் லாபம் ≈ <b>₹${g}</b>.`)}
  // top products
  const items=Object.entries(A.items).map(([k,v])=>{const it=D.items[k],ex=exTax(it,v[1]);return {k:+k,it,q:v[0],a:v[1],ex,m:mg(it[F.cat])*100,p:ex*mg(it[F.cat])}}).sort((a,b)=>b.p-a.p);
  table('tp',{sort:'p',rows:items,limit:50,foot:true,onRow:r=>openItem(r.k),cols:[{k:'n',t:'Product',str:1,s:r=>r.it[F.name],cls:'l',f:(_,r)=>`<div class="pn">${prodImg(r.it,34)}<div><b>${esc(r.it[F.name])}</b><small>${esc(D.cats[r.it[F.cat]])}</small></div></div>`},{k:'q',t:'Units',f:inr},{k:'a',t:'Sales',f:rs},{k:'ex',t:'Excl. GST',f:rs},{k:'m',t:'Margin',f:v=>v.toFixed(0)+'%'},{k:'p',t:'Est. profit',f:rs,bar:1}]});

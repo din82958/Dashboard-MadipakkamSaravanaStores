@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a73e8'/%3E%3Ctext x='32' y='45' font-size='38' font-weight='700' text-anchor='middle' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/app.css?v=20261048">
 <script>(function(){try{var t=localStorage.getItem('sss-theme');var q=new URLSearchParams(location.search).get('theme');if(q==='light'||q==='dark')t=q;if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script>
 <meta name="theme-color" content="#1a73e8">
 <style>
@@ -33,7 +33,7 @@ html[data-theme="dark"] #boot{background:#171717;color:#9aa0a6}html[data-theme="
 <div id="boot" role="status" aria-live="polite"><div class="bt-in"><div class="bt-stage"><img class="bt-logo" src="assets/logo-red.png" alt="Madipakkam Saravana Stores"></div><div class="bt-bar"><b></b></div><div class="bt-msg"><span>Reading your sales data…</span><span>Counting bills and stock…</span><span>Drawing your charts…</span></div></div></div>
 <script src="assets/chart.min.js"></script>
 <script src="assets/data.js"></script>
-<script src="assets/app.js"></script>
+<script src="assets/ta.js?v=20261048"></script><script src="assets/app.js?v=20261048"></script>
 <script>
 // Stock Health
 const {rs,rsf,inr,pill,kpis,chart,axes,tip,D,F,css,table,openItem,esc,catIcon,catChip,prodImg,tms,MS}=App;
@@ -91,7 +91,7 @@ update(){
   let rows=tab==='urgent'?fastNeg:tab==='neg'?negItems:tab==='dead'?dead:tab==='over'?over:R.filter(r=>r.vpos>0);
   const ql=q.toLowerCase();rows=rows.filter(r=>(!fc||r.it[F.cat]==fc)&&(!ql||r.it[F.name].toLowerCase().includes(ql)||r.it[F.pos].toLowerCase().includes(ql)||r.it[F.code]===q));
   const sk=tab==='urgent'?'s90':tab==='neg'?'vnet':tab==='dead'?'vpos':tab==='over'?'vpos':'vpos',sd=tab==='neg'?1:-1;
-  table('tb',{sort:sk,dir:sd,rows,limit:200,foot:true,onRow:r=>openItem(r.k),cols:[
+  table('tb',{sort:sk,dir:sd,rows,lazy:100,foot:true,onRow:r=>openItem(r.k),cols:[
    {k:'n',t:'Product',str:1,s:r=>r.it[F.name],cls:'l',f:(_,r)=>`<div class="pn">${prodImg(r.it,34)}<div><b>${esc(r.it[F.name])}</b><small>${esc(D.cats[r.it[F.cat]])} · code ${esc(r.it[F.code])}</small></div></div>`},
    {k:'net',t:'Net stock',f:v=>`<span class="${v<0?'neg':''}">${inr(v)}</span>`},{k:'neg',t:'Negative part',f:v=>v?`<span class="neg">${inr(v)}</span>`:'—'},{k:'mrp',t:'MRP',f:rsf},
    {k:'vnet',t:'Net value',f:v=>`<span class="${v<0?'neg':''}">${rs(v)}</span>`},{k:'vpos',t:'Positive value',f:rs,bar:tab!=='neg'&&tab!=='urgent'},

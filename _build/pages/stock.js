@@ -54,7 +54,7 @@ update(){
   let rows=tab==='urgent'?fastNeg:tab==='neg'?negItems:tab==='dead'?dead:tab==='over'?over:R.filter(r=>r.vpos>0);
   const ql=q.toLowerCase();rows=rows.filter(r=>(!fc||r.it[F.cat]==fc)&&(!ql||r.it[F.name].toLowerCase().includes(ql)||r.it[F.pos].toLowerCase().includes(ql)||r.it[F.code]===q));
   const sk=tab==='urgent'?'s90':tab==='neg'?'vnet':tab==='dead'?'vpos':tab==='over'?'vpos':'vpos',sd=tab==='neg'?1:-1;
-  table('tb',{sort:sk,dir:sd,rows,limit:200,foot:true,onRow:r=>openItem(r.k),cols:[
+  table('tb',{sort:sk,dir:sd,rows,lazy:100,foot:true,onRow:r=>openItem(r.k),cols:[
    {k:'n',t:'Product',str:1,s:r=>r.it[F.name],cls:'l',f:(_,r)=>`<div class="pn">${prodImg(r.it,34)}<div><b>${esc(r.it[F.name])}</b><small>${esc(D.cats[r.it[F.cat]])} · code ${esc(r.it[F.code])}</small></div></div>`},
    {k:'net',t:'Net stock',f:v=>`<span class="${v<0?'neg':''}">${inr(v)}</span>`},{k:'neg',t:'Negative part',f:v=>v?`<span class="neg">${inr(v)}</span>`:'—'},{k:'mrp',t:'MRP',f:rsf},
    {k:'vnet',t:'Net value',f:v=>`<span class="${v<0?'neg':''}">${rs(v)}</span>`},{k:'vpos',t:'Positive value',f:rs,bar:tab!=='neg'&&tab!=='urgent'},
