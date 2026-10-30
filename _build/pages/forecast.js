@@ -1,0 +1,135 @@
+// Cash-Flow Forecast
+// @scripts assets/bank.js
+const {rs,rsf,inr,kpis,chart,axes,table,D,css,esc,WD,MON,ymd,tms,MS,wdIdx,addMonths,monthRange}=App;
+const Bk=window.B,NB=Bk.days.length,LASTD=Bk.days[NB-1];
+// ---------- monthly series (bank) + POS sales ----------
+const MS_=[];{let c=Bk.days[0].slice(0,7);while(c<=LASTD.slice(0,7)){MS_.push(c);c=addMonths(c,1)}}
+const mi={};MS_.forEach((m,i)=>mi[m]=i);const NM=MS_.length;
+const monArr=k=>{const r=new Array(NM).fill(0);Bk.days.forEach((d,i)=>r[mi[d.slice(0,7)]]+=Bk.amt[k][i]);return r};
+const A={};['upi_in','card_in','cash_in','chq_in','other_in','owner_in','reversal_in','supplier_out','upi_out','own_out','fees','subs','bounce_out','legal'].forEach(k=>A[k]=monArr(k));
+const posMon=new Array(NM).fill(0);App.dates.forEach((d,i)=>{const j=mi[d.slice(0,7)];if(j!==undefined)posMon[j]+=D.daily[i][1]});
+const feeM=MS_.map((_,i)=>A.fees[i]+A.subs[i]+A.bounce_out[i]+A.legal[i]);
+const digM=MS_.map((_,i)=>A.upi_in[i]+A.card_in[i]);
+const lastFull=NM-2;                     // last complete month (the latest month is part-way through)
+const balAtMonthEnd=i=>{let b=0;for(let j=0;j<NB;j++){if(mi[Bk.days[j].slice(0,7)]<=i)b=Bk.bal[j]}return b};
+// ---------- model ----------
+function train(endIdx,n){                // average behaviour of the n full months ending at endIdx
+ const idx=[];for(let i=endIdx-n+1;i<=endIdx;i++)if(i>=1)idx.push(i);
+ const sum=a=>idx.reduce((s,i)=>s+a[i],0),S=sum(posMon)||1;
+ const prev=idx.map(i=>i-12).filter(i=>i>=1);const ps=prev.reduce((s,i)=>s+posMon[i],0),ts=prev.reduce((s,i)=>s+posMon[i+12],0);
+ const own=idx.map(i=>A.own_out[i]);
+ return {idx,S,g:0.5*(ps&&ts?ts/ps:1)+0.5,dig:sum(digM)/S,sup:sum(A.supplier_out)/S,upo:sum(A.upi_out)/S,other:(sum(A.cash_in)+sum(A.chq_in)+sum(A.other_in)+sum(A.owner_in)+sum(A.reversal_in))/idx.length,own:sum(A.own_out)/idx.length,fees:sum(feeM)/idx.length,avgSales:S/idx.length};
+}
+function monthSales(t,P,adj){            // t = month index (may be beyond data)
+ const ly=t-12,base=ly>=1&&ly<NM&&posMon[ly]>0&&ly<=lastFull?posMon[ly]:P.avgSales;
+ return base*(ly>=1&&ly<=lastFull?P.g:1)*(1+adj/100);
+}
+// ---------- backtest: predict month M from the 6 full months before it ----------
+function backtest(){
+ const out=[];
+ for(let M=lastFull-5;M<=lastFull;M++){
+  const P=train(M-1,6),sales=monthSales(M,P,0),inn=P.dig*sales+P.other,outf=(P.sup+P.upo)*sales+P.own+P.fees,net=inn-outf,start=balAtMonthEnd(M-1);
+  const act={sales:posMon[M],net:(digM[M]+A.cash_in[M]+A.chq_in[M]+A.other_in[M]+A.owner_in[M]+A.reversal_in[M])-(A.supplier_out[M]+A.upi_out[M]+A.own_out[M]+feeM[M])};
+  out.push({m:MS_[M],ps:sales,as:act.sales,pn:net,an:act.net,pb:start+net,ab:balAtMonthEnd(M),err:start+net-balAtMonthEnd(M)});
+ }
+ return out;
+}
+const BT=backtest(),MAE=BT.reduce((s,r)=>s+Math.abs(r.err),0)/BT.length;
+// ---------- daily projection ----------
+const P0=train(lastFull,6);
+function wdProfile(){const a=Array(7).fill(0),c=Array(7).fill(0);const n=App.dates.length;for(let i=Math.max(0,n-84);i<n;i++){const w=wdIdx(App.dates[i]);a[w]+=D.daily[i][1];c[w]++}return a.map((v,w)=>c[w]?v/c[w]:0)}
+const WDP=wdProfile();
+function supWd(){const a=Array(7).fill(0);for(let j=0;j<NB;j++){const m=mi[Bk.days[j].slice(0,7)];if(m>=lastFull-5&&m<=lastFull)a[wdIdx(Bk.days[j])]+=Bk.amt.supplier_out[j]}const t=a.reduce((s,x)=>s+x,0)||1;return a.map(x=>x/t)}
+const SWD=supWd();
+// the big fixed transfer to your own account: typical day of month and amount over the last 6 full months
+function ownBig(){const days=[],amts=[];for(let j=0;j<NB;j++){const m=mi[Bk.days[j].slice(0,7)];if(m>=lastFull-5&&m<=lastFull&&Bk.amt.own_out[j]>=150000){days.push(+Bk.days[j].slice(8));amts.push(Bk.amt.own_out[j])}}
+ if(!days.length)return {day:1,amt:0};days.sort((a,b)=>a-b);amts.sort((a,b)=>a-b);return {day:days[Math.floor(days.length/2)],amt:amts[Math.floor(amts.length/2)]}}
+const OB=ownBig();
+let AS={adj:0,dig:Math.round(P0.dig*1000)/10,sup:Math.round(P0.sup*1000)/10,upo:Math.round(P0.upo*1000)/10,ownAmt:OB.amt,ownDay:OB.day,ownRest:Math.round(Math.max(0,P0.own-OB.amt)),oneAmt:0,oneDate:'',thr:50000};
+try{const sv=JSON.parse(localStorage.getItem('sss-fc')||'null');if(sv)AS=Object.assign(AS,sv)}catch(e){}
+const DEF=JSON.parse(JSON.stringify(AS));const save=()=>{try{localStorage.setItem('sss-fc',JSON.stringify(AS))}catch(e){}};
+function project(){
+ const start=Bk.bal[NB-1],hz=new Date(tms(LASTD));hz.setUTCMonth(hz.getUTCMonth()+3,0);const endD=ymd(hz.getTime());   // end of the month after next
+ const rows=[];let bal=start,d=ymd(tms(LASTD)+MS);
+ const monthCache={};let pendOwn=0;
+ while(d<=endD){
+  const m=d.slice(0,7),t=mi[m]!==undefined?mi[m]:NM+((+m.slice(0,4)-+MS_[NM-1].slice(0,4))*12+(+m.slice(5)-+MS_[NM-1].slice(5)));
+  let c=monthCache[m];
+  if(!c){const dim=monthRange(m),dd=[];for(let x=dim.s;x<=dim.e;x=ymd(tms(x)+MS))dd.push(x);
+   const sales=monthSales(t,P0,AS.adj),wsum=dd.reduce((s,x)=>s+WDP[wdIdx(x)],0)||1,ssum=dd.reduce((s,x)=>s+SWD[wdIdx(x)],0)||1;
+   c=monthCache[m]={dim:dd.length,sales,wsum,ssum};}
+  const w=wdIdx(d),sw=WDP[w]/c.wsum,sales=c.sales*sw;
+  const inn=AS.dig/100*sales+P0.other/c.dim;
+  const sup=AS.sup/100*c.sales*SWD[w]/c.ssum,upo=AS.upo/100*sales;
+  const fee=P0.fees/c.dim,one=AS.oneAmt&&d===AS.oneDate?AS.oneAmt:0;
+  // the transfer to your own account goes on its usual day, as far as the balance can cover (never overdrawing); any shortfall is sent as money arrives
+  const dom=+d.slice(8);if(AS.ownAmt&&dom===Math.min(AS.ownDay,c.dim))pendOwn+=AS.ownAmt;
+  let ownPay=0;if(pendOwn>0){const room=Math.max(0,bal+inn-(sup+upo+fee+one+AS.ownRest/c.dim)-10000);ownPay=Math.min(pendOwn,room);pendOwn-=ownPay}
+  const own=ownPay+AS.ownRest/c.dim;
+  const out=sup+upo+own+fee+one;bal+=inn-out;
+  rows.push({d,m,sales,inn,sup,upo,own,fee,one,out,bal,ahead:rows.length+1});
+  d=ymd(tms(d)+MS);
+ }
+ return {rows,start,endD};
+}
+const wk=d=>{const x=new Date(tms(d));const day=(x.getUTCDay()+6)%7;return ymd(x.getTime()-day*MS)};
+App.page({title:'Cash-Flow Forecast',sub:'Where the bank balance is heading, from sales patterns and supplier-payment habits — with a back-test against your own past months',filters:false,
+build(){return `<div class="kpis" id="kp"></div>
+<div class="grid">
+ <div class="card s12 rv"><div class="ch"><div><h2>Balance — last 60 days and forecast</h2><div class="cap">Solid line = actual · dashed = expected · shaded band = likely range (based on how far past forecasts were off)</div></div></div><div class="tk" id="t1"></div><div class="pl x"><canvas id="cF"></canvas></div></div>
+ <div class="card s7 rv"><div class="ch"><div><h2>Month by month</h2><div class="cap">Expected money in, money out and closing balance</div></div></div><table id="tm" class="cmp"></table><div class="note" id="nm"></div></div>
+ <div class="card s5 rv"><div class="ch"><div><h2>Change the assumptions</h2><div class="cap">Everything recalculates instantly. Saved on this device.</div></div></div><div id="as"></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Week by week</h2><div class="cap">Next 10 weeks · expected money in vs money out</div></div></div><div class="pl"><canvas id="cW"></canvas></div></div>
+ <div class="card s7 rv"><div class="ch"><div><h2>How reliable is this? Back-test on the last 6 months</h2><div class="cap">For each month the model only saw the 6 months before it, then predicted the month-end balance. Compare with what happened.</div></div></div><div class="tk" id="t2"></div><table id="tb" class="cmp"></table></div>
+ <div class="card s5 rv"><div class="ch"><div><h2>How the forecast works</h2></div></div>
+  <div class="note" style="margin-top:0;font-size:13.5px;line-height:1.7"><b>1. Sales:</b> same month last year, moved halfway towards your recent year-on-year trend (this tested best against past months), spread over days using the usual weekday pattern (Sat/Sun biggest).<br><b>2. Money in:</b> the share of sales that reaches the bank by UPI and card (about 79% lately), plus the usual small cash and cheque deposits, reversals of failed payments and transfers in.<br><b>3. Money out:</b> supplier payments as a share of sales, paid on the weekdays you usually pay; UPI payments out; the fixed monthly transfer to your other account; owner drawings; bank fees.<br><b>4. Range:</b> the average miss of the model on the last 6 months, widening the further ahead it looks.<br><br><b>Big caveats:</b> supplier payments are your choice and come in lumps; Deepavali moves between months; a large stock purchase, loan or cheque would change everything. Use the "one-off payment" box to test those.</div></div>
+</div>`},
+update(){
+ const {rows,start,endD}=project();const band=a=>1.25*MAE*Math.sqrt(Math.max(a,5)/30);
+ const at=d=>rows.find(r=>r.d===d)||rows[rows.length-1];
+ const m0=LASTD.slice(0,7),eo=monthRange(m0).e,en=monthRange(addMonths(m0,1)).e,ed=monthRange(addMonths(m0,2)).e;
+ const lo=rows.reduce((m,r)=>r.bal<m.bal?r:m,rows[0]);
+ const rEO=at(eo),rEN=at(en),rED=at(ed);
+ kpis(document.getElementById('kp'),[
+  {l:'Balance now',v:()=>start,f:rs,cls:'hl',cmp:false,sub:'as of '+LASTD},
+  {l:'Expected '+eo.slice(8)+' '+MON[+eo.slice(5,7)-1],v:()=>rEO.bal,f:rs,cmp:false,sub:'±'+rs(band(rEO.ahead))},
+  {l:'Expected '+en.slice(8)+' '+MON[+en.slice(5,7)-1],v:()=>rEN.bal,f:rs,cmp:false,sub:rs(rEN.bal-band(rEN.ahead))+' to '+rs(rEN.bal+band(rEN.ahead))},
+  {l:'Expected '+ed.slice(8)+' '+MON[+ed.slice(5,7)-1],v:()=>rED.bal,f:rs,cmp:false,sub:rs(rED.bal-band(rED.ahead))+' to '+rs(rED.bal+band(rED.ahead))},
+  {l:'Lowest expected balance',v:()=>lo.bal,f:rs,cmp:false,cls:lo.bal<AS.thr?'warn':'',sub:'on '+lo.d},
+  {l:'Typical forecast miss',v:()=>MAE,f:rs,cmp:false,neutral:true,sub:'month-end, last 6 months'}],{n:1},null);
+ // chart
+ const hist=[];const n0=Math.max(0,NB-60);for(let i=n0;i<NB;i++)hist.push({d:Bk.days[i],b:Bk.bal[i]});
+ const labels=hist.map(h=>h.d).concat(rows.map(r=>r.d));
+ const act=hist.map(h=>h.b).concat(rows.map(()=>null));
+ const fc=hist.map((h,i)=>i===hist.length-1?h.b:null).concat(rows.map(r=>r.bal));
+ const hi=hist.map(()=>null).concat(rows.map(r=>r.bal+band(r.ahead))),lw=hist.map(()=>null).concat(rows.map(r=>r.bal-band(r.ahead)));
+ chart('cF',{type:'line',data:{labels,datasets:[
+  {label:'low',data:lw,borderWidth:0,pointRadius:0,backgroundColor:'transparent',fill:false,order:5},
+  {label:'Likely range',data:hi,borderWidth:0,pointRadius:0,backgroundColor:css('--a')+'26',fill:'-1',order:4},
+  {label:'Actual',data:act,borderColor:css('--ink'),borderWidth:2.2,pointRadius:0,tension:.15,order:2},
+  {label:'Expected',data:fc,borderColor:css('--a'),borderWidth:2.5,borderDash:[7,5],pointRadius:0,tension:.15,order:1},
+  {label:'Warning level',data:labels.map(()=>AS.thr),borderColor:css('--neg'),borderWidth:1,borderDash:[2,4],pointRadius:0,order:6}]},
+  options:{scales:axes({yfmt:rs,x:{ticks:{maxTicksLimit:innerWidth<700?4:9}}}),interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8,color:css('--ink2'),filter:i=>i.text!=='low'}},tooltip:{filter:i=>i.dataset.label!=='low',callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y==null?'':rs(c.parsed.y))}}}}});
+ const low=lo.bal<AS.thr;
+ document.getElementById('t1').innerHTML=`Expected balance on <b>${en}</b>: <b>${rs(rEN.bal)}</b> (likely ${rs(rEN.bal-band(rEN.ahead))} to ${rs(rEN.bal+band(rEN.ahead))}). ${low?`<b style="color:var(--neg)">Warning:</b> the balance may dip to ${rs(lo.bal)} around ${lo.d} — that is below your ${rs(AS.thr)} comfort level, so plan supplier payments or a top-up from your other account.`:`The balance is not expected to fall below ${rs(lo.bal)} (${lo.d}), which is above your ${rs(AS.thr)} comfort level.`}`;
+ // monthly table
+ const mm={};rows.forEach(r=>{const x=mm[r.m]||(mm[r.m]={m:r.m,days:0,sales:0,inn:0,sup:0,upo:0,own:0,fee:0,one:0,close:0,ahead:0});x.days++;x.sales+=r.sales;x.inn+=r.inn;x.sup+=r.sup;x.upo+=r.upo;x.own+=r.own;x.fee+=r.fee;x.one+=r.one;x.close=r.bal;x.ahead=r.ahead});
+ const mrows=Object.values(mm).map(x=>({...x,label:x.m+(x.m===m0?' (rest)':''),net:x.inn-x.sup-x.upo-x.own-x.fee-x.one,low:x.close-band(x.ahead),high:x.close+band(x.ahead)}));
+ table('tm',{sort:'m',dir:1,rows:mrows,cols:[{k:'label',t:'Month',str:1,s:r=>r.m},{k:'inn',t:'Money in',f:rs},{k:'sup',t:'Suppliers',f:rs},{k:'oth',t:'UPI & own',s:r=>r.upo+r.own+r.fee+r.one,f:rs},{k:'net',t:'Net',f:v=>`<span class="${v>=0?'pos':'neg'}">${rs(v)}</span>`},{k:'close',t:'Closing',f:v=>`<b>${rs(v)}</b>`},{k:'rng',t:'Likely range',s:r=>r.low,f:(v,r)=>`<span class="mute">${rs(r.low)} to ${rs(r.high)}</span>`}]});
+ document.getElementById('nm').textContent='"Money in" includes UPI and card, small cash and cheque deposits, reversals of failed payments and transfers in. "(rest)" = the days of the current month after the last bank statement date.';
+ // assumptions
+ const f=(id,l,v,step,suf,w)=>`<label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute);font-weight:500;flex:1 1 ${w||150}px">${l}<span style="display:flex;align-items:center;gap:6px"><input data-a="${id}" type="number" step="${step}" value="${v}" style="width:100%;min-width:0">${suf?`<span class="mute">${suf}</span>`:''}</span></label>`;
+ document.getElementById('as').innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:12px">${f('adj','Sales vs trend',AS.adj,1,'%')}${f('dig','Digital share of sales',AS.dig,.5,'%')}${f('sup','Suppliers % of sales',AS.sup,.5,'%')}${f('upo','UPI out % of sales',AS.upo,.5,'%')}${f('ownAmt','Monthly transfer to own a/c',AS.ownAmt,1000,'₹',170)}${f('ownDay','…on day of month',AS.ownDay,1,'',110)}${f('ownRest','Other owner drawings / month',AS.ownRest,1000,'₹',170)}${f('thr','Warn me below',AS.thr,5000,'₹',130)}</div>
+  <div style="margin-top:14px;padding:12px;background:var(--soft);border-radius:12px"><div style="font-size:13px;font-weight:600;margin-bottom:6px">One-off payment (what-if)</div><div style="display:flex;gap:10px;flex-wrap:wrap"><input data-a="oneAmt" type="number" step="10000" value="${AS.oneAmt||''}" placeholder="Amount ₹" style="flex:1 1 130px;min-width:0"><input data-a="oneDate" type="date" value="${AS.oneDate}" min="${ymd(tms(LASTD)+MS)}" max="${endD}" style="flex:1 1 150px;min-width:0"></div><div class="note" style="margin-top:6px">For example a big stock purchase or festival buy-in.</div></div>
+  <button id="rst" style="margin-top:12px">Reset to model values</button>`;
+ document.querySelectorAll('#as input').forEach(inp=>inp.onchange=()=>{const k=inp.dataset.a;AS[k]=k==='oneDate'?inp.value:(+inp.value||0);save();App.cur._run(true)});
+ document.getElementById('rst').onclick=()=>{AS=JSON.parse(JSON.stringify(DEF));save();App.cur._run(true)};
+ // weekly bars
+ const wkm={};rows.forEach(r=>{const k=wk(r.d),x=wkm[k]||(wkm[k]={k,inn:0,out:0,close:0});x.inn+=r.inn;x.out+=r.out;x.close=r.bal});
+ const wr=Object.values(wkm).slice(0,10);
+ chart('cW',{type:'bar',data:{labels:wr.map(w=>'Wk '+w.k.slice(5)),datasets:[{label:'Money in',data:wr.map(w=>w.inn),backgroundColor:css('--a'),borderRadius:4,borderSkipped:false},{label:'Money out',data:wr.map(w=>w.out),backgroundColor:css('--b'),borderRadius:4,borderSkipped:false}]},options:{scales:axes({yfmt:rs}),plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8,color:css('--ink2')}},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+rs(c.parsed.y)+(c.datasetIndex===1?'  · closing '+rs(wr[c.dataIndex].close):'')}}}}});
+ // backtest
+ table('tb',{sort:'m',dir:1,rows:BT,cols:[{k:'m',t:'Month',str:1},{k:'ps',t:'Sales (pred.)',f:rs},{k:'as',t:'Sales (actual)',f:rs},{k:'pb',t:'Balance (pred.)',f:rs},{k:'ab',t:'Balance (actual)',f:rs},{k:'err',t:'Miss',f:v=>`<span class="${v>=0?'pos':'neg'}">${v>=0?'+':''}${rs(v)}</span>`}]});
+ const sErr=BT.reduce((s,r)=>s+Math.abs(r.ps-r.as)/r.as,0)/BT.length*100;
+ document.getElementById('t2').innerHTML=`Sales were predicted within about <b>${sErr.toFixed(0)}%</b> on average and the month-end balance was off by <b>${rs(MAE)}</b> on average. Sales are the reliable part; the balance is moved mostly by <b>when you pay suppliers</b>, which is why the range is wide.`;
+}});

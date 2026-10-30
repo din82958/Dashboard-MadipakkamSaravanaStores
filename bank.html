@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bank & Cash Flow · Saravana Stores</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a73e8'/%3E%3Ctext x='32' y='45' font-size='38' font-weight='700' text-anchor='middle' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<script>(function(){try{var t=localStorage.getItem('sss-theme');var q=new URLSearchParams(location.search).get('theme');if(q==='light'||q==='dark')t=q;if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script>
+<meta name="theme-color" content="#1a73e8">
+<style>
+#boot{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#f8f9fa;color:#5f6368;font:500 14px/1.4 Inter,Roboto,"Segoe UI",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){html:not([data-theme="light"]) #boot{background:#171717;color:#9aa0a6}html:not([data-theme="light"]) .bt-logo{filter:brightness(0) invert(.92)}}
+html[data-theme="dark"] #boot{background:#171717;color:#9aa0a6}html[data-theme="dark"] .bt-logo{filter:brightness(0) invert(.92)}
+.bt-in{display:flex;flex-direction:column;align-items:center;gap:26px;padding:24px}
+.bt-stage{display:grid;place-items:center}
+.bt-logo{width:200px;animation:btfade .7s ease-out both}
+.bt-bar{width:240px;height:4px;border-radius:2px;background:rgba(26,115,232,.16);overflow:hidden}
+.bt-bar b{display:block;width:90px;height:100%;border-radius:2px;background:linear-gradient(90deg,#4285f4,#1a73e8);animation:btslide 1.25s ease-in-out infinite}
+.bt-msg{position:relative;height:20px;width:260px;text-align:center}
+.bt-msg span{position:absolute;inset:0;opacity:0;animation:btmsg 6s infinite}
+.bt-msg span:nth-child(2){animation-delay:2s}.bt-msg span:nth-child(3){animation-delay:4s}
+@keyframes btfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes btslide{0%{transform:translateX(-95px)}100%{transform:translateX(250px)}}
+@keyframes btmsg{0%{opacity:0;transform:translateY(5px)}8%,30%{opacity:1;transform:none}38%,100%{opacity:0;transform:translateY(-5px)}}
+@media (prefers-reduced-motion:reduce){.bt-logo,.bt-bar b,.bt-msg span{animation:none}.bt-msg span:first-child{opacity:1}.bt-bar b{width:100%}}
+</style>
+
+</head>
+<body>
+<div id="boot" role="status" aria-live="polite"><div class="bt-in"><div class="bt-stage"><img class="bt-logo" src="assets/logo-red.png" alt="Madipakkam Saravana Stores"></div><div class="bt-bar"><b></b></div><div class="bt-msg"><span>Reading your sales data…</span><span>Counting bills and stock…</span><span>Drawing your charts…</span></div></div></div>
+<script src="assets/chart.min.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/bank.js"></script>
+<script src="assets/app.js"></script>
+<script>
+// Bank & Cash Flow
+// @scripts assets/bank.js
+const {rs,rsf,inr,pill,pc,kpis,chart,axes,tip,table,D,css,S,esc,WD,MON}=App;
+const Bk=window.B;
+const bi={};Bk.days.forEach((d,i)=>bi[d]=i);
+const sumR=(arr,a,b)=>{let t=0;for(let i=a;i<=b;i++)t+=arr[i];return t};
+function range(p){let a=0,b=Bk.days.length-1;while(a<=b&&Bk.days[a]<p.s)a++;while(b>=a&&Bk.days[b]>p.e)b--;return [a,b]}
+let EX=new Set();try{EX=new Set(JSON.parse(localStorage.getItem('sss-notsupplier')||'[]'))}catch(e){}
+const saveEx=()=>{try{localStorage.setItem('sss-notsupplier',JSON.stringify([...EX]))}catch(e){}};
+function bagg(p){
+ if(!p)return null;const [a,b]=range(p),o={p,n:(App.tms(p.e)-App.tms(p.s))/App.MS+1};
+ const T=k=>b<a?0:sumR(Bk.amt[k],a,b);
+ o.upi=T('upi_in');o.card=T('card_in');o.cash=T('cash_in');o.chq=T('chq_in');o.owner=T('owner_in');o.other=T('other_in');o.rev=T('reversal_in');
+ o.in=o.upi+o.card+o.cash+o.chq+o.owner+o.other+o.rev;
+ o.sup=T('supplier_out');o.upo=T('upi_out');o.own=T('own_out');o.fees=T('fees')+T('subs')+T('bounce_out')+T('legal');
+ o.out=o.sup+o.upo+o.own+o.fees;o.net=o.in-o.out;o.close=b>=a?Bk.bal[b]:0;
+ o.cntUpi=b<a?0:sumR(Bk.cnt.upi_in,a,b);
+ o.pos=App.agg(p);o.sales=o.pos.sales;
+ // payments to suppliers net of payees the owner marked "not a supplier"
+ o.supEx=0;if(EX.size){Bk.sup.forEach(s=>{if(EX.has(s.n)){for(const m in s.m){if(m>=p.s.slice(0,7)&&m<=p.e.slice(0,7)){/* month-level approximation */o.supEx+=s.m[m]*monthShare(m,p)}}}})}
+ return o;
+}
+function monthShare(m,p){const ms=m+'-01',me=App.monthRange(m).e;if(ms>=p.s&&me<=p.e)return 1;const s=ms>p.s?ms:p.s,e=me<p.e?me:p.e;return Math.max(0,((App.tms(e)-App.tms(s))/App.MS+1)/((App.tms(me)-App.tms(ms))/App.MS+1))}
+// months (all history)
+const MS_=[];{let c=Bk.days[0].slice(0,7);while(c<=Bk.days[Bk.days.length-1].slice(0,7)){MS_.push(c);c=App.addMonths(c,1)}}
+const mIdx={};MS_.forEach((m,i)=>mIdx[m]=i);
+const mon=k=>{const r=new Array(MS_.length).fill(0);Bk.days.forEach((d,i)=>r[mIdx[d.slice(0,7)]]+=Bk.amt[k][i]);return r};
+const posMon=new Array(MS_.length).fill(0);App.dates.forEach((d,i)=>{const j=mIdx[d.slice(0,7)];if(j!==undefined)posMon[j]+=D.daily[i][1]});
+function openPayee(r){
+ let dr=document.getElementById('drawer');
+ if(!dr){document.body.insertAdjacentHTML('beforeend','<div class="veil" id="veil"></div><aside class="drawer" id="drawer"><button class="ibtn x" id="dx" aria-label="Close">✕</button><div id="dbody"></div></aside>');dr=document.getElementById('drawer');const close=()=>{dr.classList.remove('open');document.getElementById('veil').classList.remove('open')};document.getElementById('dx').onclick=close;document.getElementById('veil').onclick=close}
+ const months=Object.keys(r.m);
+ document.getElementById('dbody').innerHTML=`<h3>${esc(r.n)}</h3><div class="mute" style="font-size:13px;margin-bottom:12px">Payments from this account · ${r.f} → ${r.l}</div>
+ <div class="kpis" style="grid-template-columns:1fr 1fr 1fr"><div class="k"><div class="l">Total paid</div><div class="v">${rs(r.t)}</div></div><div class="k"><div class="l">Payments</div><div class="v">${inr(r.c)}</div></div><div class="k"><div class="l">Average</div><div class="v">${rs(r.t/r.c)}</div></div></div>
+ <div class="pl s"><canvas id="cPay"></canvas></div>`;
+ dr.classList.add('open');document.getElementById('veil').classList.add('open');
+ const all=MS_.map(m=>r.m[m]||0);
+ chart('cPay',{type:'bar',data:{labels:MS_,datasets:[{label:'Paid',data:all,backgroundColor:css('--a'),borderRadius:4,borderSkipped:false}]},options:{scales:axes({yfmt:rs}),plugins:{tooltip:tip(rs)}}});
+}
+App.page({title:'Bank & Cash Flow',sub:'IDFC FIRST Bank statements · '+Bk.meta.first+' to '+Bk.meta.last+' · '+inr(Bk.meta.txns)+' transactions, all reconciled to the bank totals',show:false,
+build(){return `<div class="kpis" id="kp"></div>
+<div class="grid">
+ <div class="card s12 rv"><div class="ch"><div><h2>How customers pay — estimated mix of POS sales</h2><div class="cap">POS bills show everything as cash. The bank shows what actually arrived by UPI and card; the rest is cash that was not deposited. Monthly, all history.</div></div></div><div class="tk" id="t1"></div><div class="pl t"><canvas id="cMix"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Money in vs money out</h2><div class="cap">Per month · includes transfers between your own accounts</div></div></div><div class="pl"><canvas id="cIO"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Bank balance</h2><div class="cap">Closing balance each day</div></div></div><div class="tk" id="t2"></div><div class="pl"><canvas id="cBal"></canvas></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Indicative margin check from payments to suppliers</h2><div class="cap">Period A · sales (incl. GST) minus money paid to suppliers from this account. A cross-check of your 30–40% margin, not accounting.</div></div></div><div id="mg"></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Payments to suppliers by month</h2></div></div><div class="pl"><canvas id="cSup"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Where money goes (period A)</h2><div class="cap">Share of total money out</div></div></div><div id="out"></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Who you pay</h2><div class="cap">All history · click a name for the month-by-month history · tick "not a supplier" for rent, loans or personal payments to remove them from the margin check</div></div></div><div class="scroll t"><table id="ts"></table></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>UPI customers — active and new per month</h2><div class="cap">Counted from payer details on newer UPI credits (Jun 2025 onwards)</div></div></div><div class="tk" id="t3"></div><div class="pl"><canvas id="cCu"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>How often customers come back</h2><div class="cap">UPI payers by number of payments</div></div></div><div class="pl"><canvas id="cFr"></canvas></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Most valuable UPI payers</h2><div class="cap">Shown as on the bank statement (names are shortened by the bank)</div></div></div><div class="scroll"><table id="tcu"></table></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Largest non-UPI credits</h2><div class="cap">Cash deposits, cheques, transfers in</div></div></div><div class="scroll"><table id="tbi"></table></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Largest payments out</h2></div></div><div class="scroll"><table id="tbo"></table></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Bank charges &amp; auto-debits</h2><div class="cap">All history</div></div></div><div id="fe"></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Cheque bounces &amp; returns</h2></div></div><div class="scroll"><table id="tch"></table></div></div>
+</div>`},
+update(A,B_){
+ const a=bagg(A.p),b=B_?bagg(B_.p):null;
+ kpis(document.getElementById('kp'),[
+  {l:'Money in',v:x=>x.in,f:rs,cls:'hl',sub:inr(a.cntUpi)+' UPI credits'},{l:'UPI collected',v:x=>x.upi,f:rs},{l:'Card settlements',v:x=>x.card,f:rs},
+  {l:'Paid to suppliers',v:x=>x.sup,f:rs,neutral:true},{l:'Own / owner transfers',v:x=>x.own,f:rs,neutral:true},{l:'Closing balance',v:x=>x.close,f:rs,neutral:true,sub:'at end of period'}],a,b);
+ // payment mix by month
+ const upi=mon('upi_in'),card=mon('card_in'),cashDep=mon('cash_in');
+ const rest=MS_.map((_,i)=>Math.max(0,posMon[i]-upi[i]-card[i]));
+ chart('cMix',{type:'bar',data:{labels:MS_,datasets:[{label:'UPI',data:upi,backgroundColor:css('--c1'),stack:'s'},{label:'Card',data:card,backgroundColor:css('--c3'),stack:'s'},{label:'Cash / not banked (estimate)',data:rest,backgroundColor:css('--c9'),stack:'s',borderRadius:0}].map(d=>({...d,borderColor:css('--card'),borderWidth:1.5,borderSkipped:false})),},options:{scales:Object.assign(axes({yfmt:rs}),{x:{stacked:true,grid:{display:false},border:{display:false},ticks:{color:css('--mute'),maxRotation:0,autoSkip:true,maxTicksLimit:innerWidth<700?5:16}},y:{stacked:true,grid:{color:css('--line')},border:{display:false},ticks:{color:css('--mute'),callback:rs},beginAtZero:true}}),plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8,color:css('--ink2')}},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+rs(c.parsed.y)}}}}});
+ const pa=a.sales||1,dg=(a.upi+a.card)/pa*100;
+ document.getElementById('t1').innerHTML=`In period A, <b>${(a.upi/pa*100).toFixed(0)}%</b> of POS sales reached the bank by UPI and <b>${(a.card/pa*100).toFixed(0)}%</b> by card — about <b>${Math.min(100,dg).toFixed(0)}%</b> digital. The remaining <b>${Math.max(0,100-dg).toFixed(0)}%</b> (${rs(Math.max(0,a.sales-a.upi-a.card))}) is cash that was kept or spent without being deposited.`;
+ // money in vs out
+ const inn=MS_.map((_,i)=>['upi_in','card_in','cash_in','chq_in','owner_in','other_in','reversal_in'].reduce((s,k)=>s+mon(k)[i],0));
+ const outm=MS_.map((_,i)=>['supplier_out','upi_out','own_out','fees','subs','bounce_out','legal'].reduce((s,k)=>s+mon(k)[i],0));
+ chart('cIO',{type:'bar',data:{labels:MS_,datasets:[{label:'Money in',data:inn,backgroundColor:css('--a'),borderRadius:3,borderSkipped:false},{label:'Money out',data:outm,backgroundColor:css('--b'),borderRadius:3,borderSkipped:false}]},options:{scales:axes({yfmt:rs}),plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8,color:css('--ink2')},},tooltip:tip(rs)}}});
+ // balance line
+ chart('cBal',{type:'line',data:{labels:Bk.days,datasets:[{label:'Closing balance',data:Bk.bal,borderColor:css('--a'),backgroundColor:css('--a')+'22',fill:true,borderWidth:2,pointRadius:0,tension:.2}]},options:{scales:axes({yfmt:rs,x:{ticks:{maxTicksLimit:innerWidth<700?4:8}}}),plugins:{tooltip:tip(rs)}}});
+ const mn=Math.min(...Bk.bal),mxb=Math.max(...Bk.bal),lowD=Bk.days[Bk.bal.indexOf(mn)];
+ document.getElementById('t2').innerHTML=`Balance now <b>${rs(Bk.meta.close)}</b>. Highest <b>${rs(mxb)}</b>, lowest <b>${rs(mn)}</b> (${lowD}). The account is run lean — large receipts leave within days for suppliers and own-account transfers.`;
+ // margin check
+ const supNet=a.sup-a.supEx,hi=supNet+a.upo;
+ const m1=a.sales?(1-supNet/a.sales)*100:0,m2=a.sales?(1-hi/a.sales)*100:0;
+ document.getElementById('mg').innerHTML=`<div class="kpis" style="--cols:4;margin-bottom:8px"><div class="k"><div class="l">POS sales (incl. GST)</div><div class="v">${rs(a.sales)}</div></div><div class="k"><div class="l">Paid to suppliers (bank)</div><div class="v">${rs(supNet)}</div><div class="c">NEFT, IMPS, cheques${a.supEx?' · excl. '+rs(a.supEx)+' marked not-supplier':''}</div></div>
+ <div class="k"><div class="l">+ UPI payments out</div><div class="v">${rs(hi)}</div><div class="c">if UPI payments are mostly stock purchases</div></div><div class="k hl"><div class="l">Indicative margin band</div><div class="v">${m2.toFixed(0)}% – ${m1.toFixed(0)}%</div><div class="c">your estimate 30–40%</div></div></div>
+ <div class="note"><b>How to read this.</b> Sales minus supplier payments, as a share of sales, is a rough gross margin if all stock is bought through this account and stock levels stay flat. It ignores cash purchases, credit given by suppliers, stock built up or sold down, and GST remitted. It is only meaningful over long periods (a year or more) — try the "All time" quick range.</div>`;
+ // supplier by month
+ const sm=mon('supplier_out');
+ chart('cSup',{type:'bar',data:{labels:MS_,datasets:[{label:'Paid to suppliers',data:sm,backgroundColor:css('--c2'),borderRadius:4,borderSkipped:false}]},options:{scales:axes({yfmt:rs}),plugins:{tooltip:tip(rs)}}});
+ // where money goes
+ const parts=[['Suppliers (NEFT / IMPS / cheque)',a.sup,'--c2'],['UPI payments out',a.upo,'--c1'],['Own accounts & owner',a.own,'--c7'],['Bank charges & debits',a.fees,'--c9']];const totO=a.out||1;
+ document.getElementById('out').innerHTML=parts.map(([n,v,c])=>`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-size:14px"><span><span class="sw" style="background:var(${c})"></span>${n}</span><b>${rs(v)} <span class="mute" style="font-weight:400">· ${(v/totO*100).toFixed(0)}%</span></b></div><div class="bar-row" style="grid-template-columns:1fr;margin:4px 0 0"><div class="t"><i data-w="${v/totO*100}" style="background:var(${c})"></i></div></div></div>`).join('')+`<div class="note">Own-account transfers move money you already own (for example the monthly ₹2,00,000 to another Saravana Stores account) — they are not an expense.</div>`;
+ requestAnimationFrame(()=>document.querySelectorAll('#out .t i').forEach(i=>i.style.width=i.dataset.w+'%'));
+ // payees table
+ const rows=Bk.sup.map(s=>({...s,ex:EX.has(s.n)?1:0,avg:s.t/s.c}));
+ table('ts',{sort:'t',rows,limit:60,foot:'top 60 of '+Bk.sup.length+' names',onRow:r=>openPayee(r),cols:[
+  {k:'n',t:'Payee',str:1,cls:'l',f:v=>`<b style="font-weight:500">${esc(v)}</b>`},{k:'t',t:'Total paid',f:rs,bar:1},{k:'c',t:'Payments',f:inr},{k:'avg',t:'Average',f:rs},{k:'f',t:'First',str:1},{k:'l',t:'Last',str:1},
+  {k:'ex',t:'Not a supplier',s:r=>r.ex,f:(v,r)=>`<input type="checkbox" data-n="${esc(r.n)}" ${v?'checked':''} style="width:18px;height:18px;accent-color:var(--a)">`}]});
+ document.querySelectorAll('#ts input[type=checkbox]').forEach(cb=>{cb.onclick=e=>e.stopPropagation();cb.onchange=()=>{cb.checked?EX.add(cb.dataset.n):EX.delete(cb.dataset.n);saveEx();App.cur._run(true)}});
+ // customers
+ const cu=Bk.cust,cm=Object.keys(cu.monthActive);
+ chart('cCu',{type:'bar',data:{labels:cm,datasets:[{label:'Active payers',data:cm.map(m=>cu.monthActive[m]),backgroundColor:css('--c1'),borderRadius:4,borderSkipped:false},{label:'New payers',data:cm.map(m=>cu.monthNew[m]||0),backgroundColor:css('--c3'),borderRadius:4,borderSkipped:false}]},options:{scales:axes({yfmt:inr}),plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8,color:css('--ink2')}},tooltip:tip(inr)}}});
+ const rep=cu.unique-cu.freq['1'];document.getElementById('t3').innerHTML=`<b>${inr(cu.unique)}</b> different UPI payers since mid-2025; <b>${(rep/cu.unique*100).toFixed(0)}%</b> came back at least once and <b>${inr((cu.freq['10-24']||0)+(cu.freq['25+']||0))}</b> paid 10+ times — your regulars.`;
+ const fk=['1','2-3','4-9','10-24','25+'];
+ chart('cFr',{type:'bar',data:{labels:fk.map(k=>k==='1'?'1 payment':k+' payments'),datasets:[{label:'Payers',data:fk.map(k=>cu.freq[k]||0),backgroundColor:css('--c7'),borderRadius:5,borderSkipped:false}]},options:{scales:axes({yfmt:inr}),plugins:{tooltip:tip(inr)}}});
+ table('tcu',{sort:'t',rows:cu.top.map(r=>({...r,avg:r.t/r.c})),limit:25,cols:[{k:'n',t:'Payer',str:1,cls:'l'},{k:'t',t:'Total paid',f:rs,bar:1},{k:'c',t:'Payments',f:inr},{k:'avg',t:'Average',f:rs},{k:'f',t:'First',str:1},{k:'l',t:'Last',str:1}]});
+ const KN={cash_in:'Cash deposit',chq_in:'Cheque deposit',owner_in:'Owner transfer in',other_in:'Transfer in',reversal_in:'Reversal / return',supplier_out:'Supplier',upi_out:'UPI',own_out:'Own account / owner',fees:'Charges',subs:'Auto-debit',bounce_out:'Bounced cheque',legal:'Legal'};
+ table('tbi',{sort:'a',rows:Bk.bigin,limit:15,cols:[{k:'d',t:'Date',str:1},{k:'a',t:'Amount',f:rs,bar:1},{k:'k',t:'Type',str:1,cls:'l',f:v=>`<span class="tag">${KN[v]||v}</span>`},{k:'p',t:'Detail',str:1,cls:'n l mute'}]});
+ table('tbo',{sort:'a',rows:Bk.bigout,limit:15,cols:[{k:'d',t:'Date',str:1},{k:'a',t:'Amount',f:rs,bar:1},{k:'k',t:'Type',str:1,cls:'l',f:v=>`<span class="tag">${KN[v]||v}</span>`},{k:'n',t:'To',str:1,cls:'n l'}]});
+ const fe=Object.entries(Bk.fees);document.getElementById('fe').innerHTML=fe.map(([n,v])=>`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)"><span>${n}</span><b>${rsf(v)}</b></div>`).join('')+'<div class="note">Almost nothing is lost to bank charges. The one recurring auto-debit is the Just Dial listing (₹3,540 per month).</div>';
+ table('tch',{sort:'d',rows:Bk.chq.map(r=>({...r,kk:r.k==='bounce_out'?'Bounce (out)':r.k==='reversal_in'?'Return / reversal (in)':r.k})),cols:[{k:'d',t:'Date',str:1},{k:'a',t:'Amount',f:rs},{k:'kk',t:'Type',str:1,cls:'l',f:v=>`<span class="tag">${v}</span>`},{k:'p',t:'Detail',str:1,cls:'n l mute'}]});
+}});
+
+</script>
+</body>
+</html>

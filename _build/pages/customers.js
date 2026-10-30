@@ -1,0 +1,83 @@
+// Regular Customers
+// @scripts assets/bank.js
+const {rs,rsf,inr,kpis,chart,axes,tip,table,css,esc,tms,MS,MON}=App;
+const Bk=window.B,LASTD=Bk.days[Bk.days.length-1];
+const T0=tms(LASTD);
+// ---------- build the customer list from the UPI payer history ----------
+const ALL=Bk.payers.map((p,i)=>{
+ const n=p[2],first=Bk.days[p[4]],last=Bk.days[p[5]],span=(tms(last)-tms(first))/MS,interval=n>1?span/(n-1):0,since=Math.round((T0-tms(last))/MS);
+ const tier=n>=10?'Loyal':n>=4?'Regular':'Repeat';
+ const expected=Math.max(interval,7);
+ const status=since<=Math.max(30,1.5*expected)?'Active':since<=Math.min(150,4*expected+14)?'Overdue':'Lapsed';
+ return {i,name:p[0],bank:p[1],n,total:p[3],avg:p[3]/n,first,last,span,interval,since,tier,status,pay:p[6]};
+});
+const TIERS=['Loyal','Regular','Repeat'];
+let fT='',fS='',q='';
+function openCust(r){
+ App.drawerInit();
+ const months=[];let c=Bk.days[0].slice(0,7);while(c<=LASTD.slice(0,7)){months.push(c);c=App.addMonths(c,1)}
+ const mv={};for(let k=0;k<r.pay.length;k+=2){const m=Bk.days[r.pay[k]].slice(0,7);mv[m]=(mv[m]||0)+r.pay[k+1]}
+ const from=months.findIndex(m=>m>=r.first.slice(0,7)),ml=months.slice(from);
+ const list=[];for(let k=r.pay.length-2;k>=0;k-=2)list.push({d:Bk.days[r.pay[k]],a:r.pay[k+1]});
+ document.getElementById('dbody').innerHTML=`<h3>${esc(r.name)}</h3><div class="mute" style="font-size:13px;margin-bottom:12px">UPI payer · ${esc(r.bank||'bank n/a')} · ${r.tier} customer · ${r.status}</div>
+ <div class="kpis" style="--cols:3"><div class="k"><div class="l">Total paid</div><div class="v">${rs(r.total)}</div></div><div class="k"><div class="l">Payments</div><div class="v">${r.n}</div></div><div class="k"><div class="l">Average</div><div class="v">${rs(r.avg)}</div></div></div>
+ <div class="tk" style="margin:0 0 10px">${r.n>1?`Usually pays every <b>${Math.round(r.interval)}</b> days. Last paid <b>${r.last}</b> (${r.since} days ago).`:''}</div>
+ <div class="pl s"><canvas id="cCu1"></canvas></div>
+ <div class="mute" style="font-size:12.5px;margin:12px 0 4px">Every payment</div><table id="dcl" class="cmp"></table>`;
+ document.getElementById('drawer').classList.add('open');document.getElementById('veil').classList.add('open');
+ chart('cCu1',{type:'bar',data:{labels:ml,datasets:[{label:'Paid',data:ml.map(m=>mv[m]||0),backgroundColor:css('--a'),borderRadius:4,borderSkipped:false}]},options:{scales:axes({yfmt:rs}),plugins:{tooltip:tip(rs)}}});
+ table('dcl',{sort:'d',rows:list,limit:40,foot:true,cols:[{k:'d',t:'Date',str:1},{k:'a',t:'Amount',f:rsf,bar:1}]});
+}
+function csv(rows){
+ const h=['Name (as on statement)','Bank','Tier','Status','Payments','Total paid','Average','Usually every (days)','First payment','Last payment','Days since last'];
+ const esc2=v=>'"'+String(v).replace(/"/g,'""')+'"';
+ const body=rows.map(r=>[r.name,r.bank,r.tier,r.status,r.n,r.total,Math.round(r.avg),Math.round(r.interval),r.first,r.last,r.since].map(esc2).join(','));
+ const blob=new Blob(['﻿'+[h.map(esc2).join(',')].concat(body).join('\n')],{type:'text/csv'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='regular-customers.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+}
+App.page({title:'Regular Customers',sub:'Repeat UPI customers found in your bank statements — who comes back, how often, and who has gone quiet',filters:false,
+build(){return `<div class="kpis" id="kp"></div>
+<div class="grid">
+ <div class="card s6 rv"><div class="ch"><div><h2>Where UPI money comes from</h2><div class="cap">Customers grouped by how many times they paid</div></div></div><div class="tk" id="t1"></div><div class="pl"><canvas id="cT"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Regular customers active each month</h2><div class="cap">Customers with 4+ payments who paid in that month</div></div></div><div class="tk" id="t2"></div><div class="pl"><canvas id="cA"></canvas></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Worth reaching out to</h2><div class="cap">Regular and loyal customers who have not paid for longer than their usual gap — sorted by what they have spent</div></div></div><div class="scroll"><table id="tw"></table></div><div class="note">The bank shortens payer names (e.g. "Mrs Bhan"), and no phone numbers are shown. Use the name, bank and last date to find them in your UPI app contacts or your own memory.</div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>All repeat customers</h2><div class="cap">Click a row for the full payment history</div></div></div>
+  <div class="tools"><input id="q" placeholder="Search name"><select id="ft"><option value="">All tiers</option><option>Loyal</option><option>Regular</option><option>Repeat</option></select><select id="fs"><option value="">All statuses</option><option>Active</option><option>Overdue</option><option>Lapsed</option></select><button id="dl" style="padding:0 16px;font-weight:600;color:var(--a)">Download CSV</button></div>
+  <div class="scroll t"><table id="tc"></table></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>How often regulars come back</h2><div class="cap">Typical gap between payments (customers with 3+ payments)</div></div></div><div class="pl"><canvas id="cG"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>What this can and cannot tell you</h2></div></div>
+  <div class="note" style="margin-top:0;font-size:13.5px;line-height:1.7"><b>Only UPI customers are visible</b> — about half of sales. Cash and card customers do not appear. <b>Names are shortened</b> by the bank and two people can share a name; one person can pay from several UPI IDs. The payer name is only shown on statements from <b>mid-2025</b> onwards, so earlier customers are not in this list. <b>"Overdue"</b> means longer than 1.5× their usual gap; <b>"Lapsed"</b> means much longer or over 150 days. Treat it as a guide for outreach, not a customer database.</div></div>
+</div>`},
+update(){
+ const reg=ALL.filter(r=>r.tier!=='Repeat'),act=reg.filter(r=>r.status==='Active'),od=reg.filter(r=>r.status==='Overdue');
+ const totRep=ALL.reduce((s,r)=>s+r.total,0),totAll=Bk.cust.amt,totReg=reg.reduce((s,r)=>s+r.total,0);
+ kpis(document.getElementById('kp'),[
+  {l:'Regular & loyal customers',v:()=>reg.length,f:inr,cls:'hl',cmp:false,sub:'4+ UPI payments'},
+  {l:'Share of UPI value',v:()=>totReg/totAll*100,f:v=>v.toFixed(0)+'%',cmp:false,neutral:true,sub:'from regulars'},
+  {l:'Active regulars',v:()=>act.length,f:inr,cmp:false,neutral:true,sub:'paying on their usual rhythm'},
+  {l:'Overdue regulars',v:()=>od.length,f:inr,cmp:false,cls:'warn',sub:rs(od.reduce((s,r)=>s+r.total,0))+' lifetime value'},
+  {l:'Average payment — regulars',v:()=>reg.reduce((s,r)=>s+r.total,0)/reg.reduce((s,r)=>s+r.n,0),f:rsf,cmp:false,neutral:true},
+  {l:'All repeat customers',v:()=>ALL.length,f:inr,cmp:false,neutral:true,sub:'2+ payments of '+inr(Bk.cust.unique)+' payers'}],{n:1},null);
+ // tiers
+ const oneT=totAll-totRep,tiers=[{n:'One payment',c:Bk.cust.unique-ALL.length,t:oneT}].concat(['Repeat','Regular','Loyal'].map(k=>{const a=ALL.filter(r=>r.tier===k);return {n:k+(k==='Repeat'?' (2–3)':k==='Regular'?' (4–9)':' (10+)'),c:a.length,t:a.reduce((s,r)=>s+r.total,0)}}));
+ chart('cT',{type:'bar',data:{labels:tiers.map(x=>x.n),datasets:[{label:'UPI value',data:tiers.map(x=>x.t),backgroundColor:[css('--c9'),css('--c1'),css('--c3'),css('--a')],borderRadius:6,borderSkipped:false}]},options:{scales:axes({yfmt:rs}),plugins:{tooltip:{callbacks:{label:c=>' '+rs(c.parsed.y)+' · '+inr(tiers[c.dataIndex].c)+' customers'}}}}});
+ document.getElementById('t1').innerHTML=`<b>${inr(reg.length)}</b> regular and loyal customers (${(reg.length/Bk.cust.unique*100).toFixed(1)}% of payers) bring <b>${(totReg/totAll*100).toFixed(0)}%</b> of identified UPI value. Customers who paid once are ${(tiers[0].c/Bk.cust.unique*100).toFixed(0)}% of payers but ${(tiers[0].t/totAll*100).toFixed(0)}% of value.`;
+ // monthly active regulars
+ const months=[];let c=Bk.days[Bk.payers[0][4]].slice(0,7);const m0=Object.keys(Bk.cust.monthActive)[0];c=m0;while(c<=LASTD.slice(0,7)){months.push(c);c=App.addMonths(c,1)}
+ const regSet=new Set(reg.map(r=>r.i)),cnt={};months.forEach(m=>cnt[m]=new Set());
+ reg.forEach(r=>{for(let k=0;k<r.pay.length;k+=2){const m=Bk.days[r.pay[k]].slice(0,7);if(cnt[m])cnt[m].add(r.i)}});
+ chart('cA',{type:'bar',data:{labels:months,datasets:[{label:'Regulars paying',data:months.map(m=>cnt[m].size),backgroundColor:css('--c3'),borderRadius:5,borderSkipped:false}]},options:{scales:axes({yfmt:inr}),plugins:{tooltip:tip(inr)}}});
+ document.getElementById('t2').innerHTML=`In the latest full month <b>${inr(cnt[months[months.length-2]].size)}</b> regulars paid. The count climbs as more customers cross the 4-payment mark — it is a measure of your loyal base building up.`;
+ // gap histogram
+ const bins=[[0,3,'≤3 days'],[3,7,'4–7'],[7,14,'8–14'],[14,30,'15–30'],[30,60,'31–60'],[60,1e9,'60+']],hv=bins.map(()=>0);
+ ALL.filter(r=>r.n>=3).forEach(r=>{const j=bins.findIndex(b=>r.interval>b[0]&&r.interval<=b[1]);hv[j<0?0:j]++});
+ chart('cG',{type:'bar',data:{labels:bins.map(b=>b[2]),datasets:[{label:'Customers',data:hv,backgroundColor:css('--c7'),borderRadius:6,borderSkipped:false}]},options:{scales:axes({yfmt:inr}),plugins:{tooltip:tip(inr)}}});
+ // outreach list
+ table('tw',{sort:'total',rows:od,limit:25,foot:true,onRow:openCust,cols:[{k:'name',t:'Customer',str:1,cls:'l',f:v=>`<b style="font-weight:500">${esc(v)}</b>`},{k:'tier',t:'Tier',str:1,f:v=>`<span class="tag">${v}</span>`},{k:'total',t:'Spent',f:rs,bar:1},{k:'n',t:'Payments'},{k:'avg',t:'Average',f:rsf},{k:'interval',t:'Usual gap',f:v=>Math.round(v)+' d'},{k:'last',t:'Last paid',str:1},{k:'since',t:'Days quiet',f:(v,r)=>`<b>${v}</b> <span class="mute">(${(v/Math.max(r.interval,7)).toFixed(1)}× usual)</span>`}]});
+ // full table
+ const draw=()=>{const ql=q.toLowerCase();const rows=ALL.filter(r=>(!fT||r.tier===fT)&&(!fS||r.status===fS)&&(!ql||r.name.toLowerCase().includes(ql)));
+  table('tc',{sort:'total',rows,limit:200,foot:true,onRow:openCust,cols:[{k:'name',t:'Customer',str:1,cls:'l',f:v=>`<b style="font-weight:500">${esc(v)}</b>`},{k:'bank',t:'Bank',str:1,cls:'l mute'},{k:'tier',t:'Tier',str:1,f:v=>`<span class="tag">${v}</span>`},{k:'status',t:'Status',str:1,f:v=>`<span class="pill ${v==='Active'?'up':v==='Overdue'?'dn':'nu'}">${v}</span>`},{k:'n',t:'Payments'},{k:'total',t:'Spent',f:rs,bar:1},{k:'avg',t:'Average',f:rsf},{k:'interval',t:'Usual gap',f:v=>Math.round(v)+' d'},{k:'first',t:'First',str:1},{k:'last',t:'Last',str:1},{k:'since',t:'Days since',f:inr}]});
+  document.getElementById('dl').onclick=()=>csv(rows)};
+ document.getElementById('q').oninput=e=>{q=e.target.value;draw()};document.getElementById('ft').onchange=e=>{fT=e.target.value;draw()};document.getElementById('fs').onchange=e=>{fS=e.target.value;draw()};
+ draw();
+}});

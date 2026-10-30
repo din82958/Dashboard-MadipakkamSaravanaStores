@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time Patterns · Saravana Stores</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a73e8'/%3E%3Ctext x='32' y='45' font-size='38' font-weight='700' text-anchor='middle' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<script>(function(){try{var t=localStorage.getItem('sss-theme');var q=new URLSearchParams(location.search).get('theme');if(q==='light'||q==='dark')t=q;if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()</script>
+<meta name="theme-color" content="#1a73e8">
+<style>
+#boot{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#f8f9fa;color:#5f6368;font:500 14px/1.4 Inter,Roboto,"Segoe UI",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){html:not([data-theme="light"]) #boot{background:#171717;color:#9aa0a6}html:not([data-theme="light"]) .bt-logo{filter:brightness(0) invert(.92)}}
+html[data-theme="dark"] #boot{background:#171717;color:#9aa0a6}html[data-theme="dark"] .bt-logo{filter:brightness(0) invert(.92)}
+.bt-in{display:flex;flex-direction:column;align-items:center;gap:26px;padding:24px}
+.bt-stage{display:grid;place-items:center}
+.bt-logo{width:200px;animation:btfade .7s ease-out both}
+.bt-bar{width:240px;height:4px;border-radius:2px;background:rgba(26,115,232,.16);overflow:hidden}
+.bt-bar b{display:block;width:90px;height:100%;border-radius:2px;background:linear-gradient(90deg,#4285f4,#1a73e8);animation:btslide 1.25s ease-in-out infinite}
+.bt-msg{position:relative;height:20px;width:260px;text-align:center}
+.bt-msg span{position:absolute;inset:0;opacity:0;animation:btmsg 6s infinite}
+.bt-msg span:nth-child(2){animation-delay:2s}.bt-msg span:nth-child(3){animation-delay:4s}
+@keyframes btfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes btslide{0%{transform:translateX(-95px)}100%{transform:translateX(250px)}}
+@keyframes btmsg{0%{opacity:0;transform:translateY(5px)}8%,30%{opacity:1;transform:none}38%,100%{opacity:0;transform:translateY(-5px)}}
+@media (prefers-reduced-motion:reduce){.bt-logo,.bt-bar b,.bt-msg span{animation:none}.bt-msg span:first-child{opacity:1}.bt-bar b{width:100%}}
+</style>
+
+</head>
+<body>
+<div id="boot" role="status" aria-live="polite"><div class="bt-in"><div class="bt-stage"><img class="bt-logo" src="assets/logo-red.png" alt="Madipakkam Saravana Stores"></div><div class="bt-bar"><b></b></div><div class="bt-msg"><span>Reading your sales data…</span><span>Counting bills and stock…</span><span>Drawing your charts…</span></div></div></div>
+<script src="assets/chart.min.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+// Time Patterns
+const {rs,inr,pc,kpis,chart,axes,tip,WD,MON,D,css,S,mix}=App;
+const H=[];for(let h=9;h<=22;h++)H.push(h);
+const hl=h=>(h%12||12)+(h<12?'am':'pm');
+// seasonality: avg daily sales by calendar month, all history, full months only
+const SEA={};App.dates.forEach((d,i)=>{const k=d.slice(0,7),y=k.slice(0,4),m=+k.slice(5)-1;const o=(SEA[y]||(SEA[y]=Array.from({length:12},()=>[0,0])))[m];o[0]+=D.daily[i][1];o[1]++});
+App.page({title:'Time Patterns',sub:'When customers buy: hour, weekday, day of month and season',show:true,
+build(){return `<div class="kpis" id="kp"></div>
+<div class="grid">
+ <div class="card s6 rv"><div class="ch"><div><h2>Sales by hour of day</h2><div class="cap" id="c1"></div></div></div><div class="tk" id="t1"></div><div class="pl"><canvas id="cH"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Average bill by hour</h2><div class="cap">Do bigger baskets come at certain hours?</div></div></div><div class="tk" id="t2"></div><div class="pl"><canvas id="cAH"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>By weekday</h2><div class="cap">Average per sale day</div></div></div><div class="tk" id="t3"></div><div class="pl"><canvas id="cW"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Shape of the sale day</h2><div class="cap">Cumulative share of the day's sales by hour</div></div></div><div class="tk" id="t4"></div><div class="pl"><canvas id="cCum"></canvas></div></div>
+ <div class="card s8 rv"><div class="ch"><div><h2>Weekday × hour heatmap</h2><div class="cap">Period A · deeper red = more sales (or bills)</div></div></div><div class="scroll"><table class="heat" id="heat"></table></div></div>
+ <div class="card s4 rv"><div class="ch"><div><h2>Weekend vs weekday</h2><div class="cap">Per sale day</div></div></div><div id="we"></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Daily calendar</h2><div class="cap">Period A · each square is a day, columns are weeks (Mon–Sun)</div></div></div><div class="cal" id="cal"></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Seasonality — average sales per sale day by calendar month</h2><div class="cap">Every year on one chart. Shows festival and slow months. Partial months excluded.</div></div></div><div class="tk" id="t5"></div><div class="pl t"><canvas id="cS"></canvas></div></div>
+</div>`},
+update(A,B){
+ const sh=S.show,idx=sh==='sales'?0:1,yf=sh==='sales'?rs:inr;
+ const hrs=A.hr.map((x,i)=>({h:i,s:x[0],b:x[1]}));const peak=hrs.reduce((m,x)=>x.s>m.s?x:m,{s:0});
+ const ev=(a,b)=>[18,19,20].reduce((s,h)=>s+(a.hr[h][0]),0)/(a.sales||1)*100;
+ const wd=A.wd.map((x,i)=>({i,v:x[2]?x[0]/x[2]:0}));const pk=wd.reduce((m,x)=>x.v>m.v?x:m,wd[0]);
+ const we=o=>{const w=[5,6].reduce((s,i)=>s+o.wd[i][0],0),wn=[5,6].reduce((s,i)=>s+o.wd[i][2],0);return {w:wn?w/wn:0,share:w/(o.sales||1)*100,wn}};
+ kpis(document.getElementById('kp'),[
+  {l:'Peak hour',v:x=>x.hr.reduce((m,h,i)=>h[0]>x.hr[m][0]?i:m,0),f:v=>hl(Math.round(v)),cmp:false,sub:peak.s?rs(peak.s)+' in that hour':''},
+  {l:'6–9 pm share of sales',v:x=>ev(x),f:v=>v.toFixed(0)+'%',neutral:true},
+  {l:'Best weekday',v:x=>x.wd.reduce((m,w,i)=>(w[2]?w[0]/w[2]:0)>(x.wd[m][2]?x.wd[m][0]/x.wd[m][2]:0)?i:m,0),f:v=>WD[Math.round(v)],cmp:false,sub:rs(pk.v)+'/day'},
+  {l:'Weekend share of sales',v:x=>we(x).share,f:v=>v.toFixed(0)+'%',neutral:true},
+  {l:'Weekend per day',v:x=>we(x).w,f:rs},
+  {l:'Busiest hour (bills)',v:x=>Math.max(...x.hr.map(h=>h[1])),f:inr}],A,B);
+ const sub=(o,i)=>o.hr[i][idx];
+ chart('cH',{type:'bar',data:{labels:H.map(hl),datasets:[{label:'A',data:H.map(h=>A.hr[h][idx]),backgroundColor:App.colA(),borderRadius:6,borderSkipped:false}].concat(B?[{label:'B',data:H.map(h=>B.hr[h][idx]),backgroundColor:App.colB(),borderRadius:6,borderSkipped:false}]:[])},options:{scales:axes({yfmt:yf}),plugins:{tooltip:tip()}}});
+ document.getElementById('c1').textContent=sh==='sales'?'Sales ₹ per hour':'Bills per hour';
+ document.getElementById('t1').innerHTML=peak.s?`<b>${hl(peak.h)}</b> is the strongest hour with <b>${(peak.s/A.sales*100).toFixed(0)}%</b> of the period's sales. The store is quietest before 11am and after 9pm.`:'No sales in this period.';
+ const ah=o=>H.map(h=>o.hr[h][1]?o.hr[h][0]/o.hr[h][1]:null);
+ chart('cAH',{type:'line',data:{labels:H.map(hl),datasets:[{label:'A',data:ah(A),borderColor:css('--a'),backgroundColor:css('--a'),borderWidth:2.5,pointRadius:3,tension:.3}].concat(B?[{label:'B',data:ah(B),borderColor:css('--b'),backgroundColor:css('--b'),borderWidth:2.5,pointRadius:3,tension:.3,borderDash:[6,4]}]:[])},options:{scales:axes({yfmt:rs,y:{beginAtZero:false}}),plugins:{tooltip:tip(rs)}}});
+ const aa=ah(A).map((v,i)=>({v,h:H[i]})).filter(x=>x.v&&A.hr[x.h][1]>=5).sort((a,b)=>b.v-a.v);
+ document.getElementById('t2').innerHTML=aa.length?`Biggest baskets at <b>${hl(aa[0].h)}</b> (${rs(aa[0].v)}); smallest at <b>${hl(aa[aa.length-1].h)}</b> (${rs(aa[aa.length-1].v)}).`:'—';
+ const av=o=>WD.map((_,w)=>o.wd[w][2]?o.wd[w][idx]/o.wd[w][2]:0);
+ chart('cW',{type:'bar',data:{labels:WD,datasets:[{label:'A',data:av(A),backgroundColor:App.colA(),borderRadius:6,borderSkipped:false}].concat(B?[{label:'B',data:av(B),backgroundColor:App.colB(),borderRadius:6,borderSkipped:false}]:[])},options:{scales:axes({yfmt:yf}),plugins:{tooltip:tip()}}});
+ const lo=wd.reduce((m,x)=>x.v&&x.v<m.v?x:m,{v:1e12});
+ document.getElementById('t3').innerHTML=pk.v?`<b>${WD[pk.i]}</b> is best at ${rs(pk.v)}/day, <b>${(pk.v/(lo.v||1)).toFixed(1)}×</b> the slowest day (${WD[lo.i]}).`:'—';
+ const cumh=o=>{let t=0;const tot=H.reduce((s,h)=>s+o.hr[h][0],0)||1;return H.map(h=>(t+=o.hr[h][0])/tot*100)};
+ chart('cCum',{type:'line',data:{labels:H.map(hl),datasets:[{label:'A',data:cumh(A),borderColor:css('--a'),backgroundColor:css('--a')+'22',fill:true,borderWidth:2.5,pointRadius:2,tension:.25}].concat(B?[{label:'B',data:cumh(B),borderColor:css('--b'),borderWidth:2.5,pointRadius:2,tension:.25,borderDash:[6,4]}]:[])},options:{scales:axes({yfmt:v=>v+'%',y:{max:100}}),plugins:{tooltip:tip(v=>v.toFixed(0)+'%')}}});
+ const c=cumh(A),half=H[c.findIndex(v=>v>=50)];document.getElementById('t4').innerHTML=A.sales?`Half of the day's sales are done by <b>${hl(half)}</b>; the last 3 hours (7–10 pm) bring <b>${(100-c[H.indexOf(18)]).toFixed(0)}%</b>.`:'—';
+ // heat
+ const src=sh==='sales'?A.heat:A.heatB;let mx=0;src.forEach(r=>r.forEach(v=>mx=Math.max(mx,v)));
+ let h='<tr><th></th>'+H.map(x=>`<th style="text-align:center;cursor:default">${hl(x)}</th>`).join('')+'</tr>';
+ WD.forEach((d,w)=>{h+=`<tr><th style="text-align:left;position:static;cursor:default">${d}</th>`+H.map((x,i)=>{const v=src[w][x],t=mx?v/mx:0;return `<td style="background:${v?mix(.08+.92*t):'var(--soft)'};color:${t>.5?'#fff':'var(--ink)'};animation-delay:${(w*14+i)*8}ms" title="${d} ${hl(x)} — ${sh==='sales'?rs(v):inr(v)}">${v?(sh==='sales'?(v>=1e5?(v/1e5).toFixed(1)+'L':Math.round(v/1000)+'k'):v):''}</td>`}).join('')+'</tr>'});
+ document.getElementById('heat').innerHTML=h;
+ // weekend
+ const a=we(A),b=B?we(B):null,wk=(A.sales-[5,6].reduce((s,i)=>s+A.wd[i][0],0))/((A.trading-a.wn)||1);
+ document.getElementById('we').innerHTML=`<div class="two"><div class="k"><div class="l">Sat + Sun / day</div><div class="v">${rs(a.w)}</div><div class="c">${a.share.toFixed(0)}% of sales</div></div><div class="k"><div class="l">Mon–Fri / day</div><div class="v">${rs(wk)}</div><div class="c">${(100-a.share).toFixed(0)}% of sales</div></div></div><div class="note">A weekend day sells <b>${(a.w/(wk||1)).toFixed(1)}×</b> a weekday on average.${b?` In period B it was ${(b.w/(((B.sales-[5,6].reduce((s,i)=>s+B.wd[i][0],0))/((B.trading-b.wn)||1))||1)).toFixed(1)}×.`:''}</div>`;
+ // calendar
+ const mxd=Math.max(...A.days.map(d=>sh==='sales'?d.s:d.b),1);let cols=[],cur=null,cn=0;
+ A.days.forEach((d,i)=>{if(!cur||(d.w===0&&i>0)){cur=Array(7).fill(null);cols.push(cur)}cur[d.w]=d});
+ document.getElementById('cal').innerHTML='<div class="cal-lbl">'+WD.map(d=>'<span>'+d+'</span>').join('')+'</div>'+cols.map(col=>'<div class="w">'+col.map(d=>{if(!d)return '<div></div>';const v=sh==='sales'?d.s:d.b;return `<div class="d" style="background:${v?mix(.1+.9*v/mxd):'var(--soft)'};animation-delay:${Math.min(cn++*6,900)}ms" title="${d.d} ${WD[d.w]}: ${sh==='sales'?rs(d.s):d.b+' bills'}"></div>`}).join('')+'</div>').join('');
+ // seasonality
+ const yrs=Object.keys(SEA);
+ const full=(y,m)=>{const o=SEA[y][m];return o[1]>=25?o[0]/o[1]:null};
+ chart('cS',{type:'line',data:{labels:MON,datasets:yrs.map((y,i)=>({label:y,data:MON.map((_,m)=>full(y,m)),borderColor:css('--c'+(i+1)),backgroundColor:css('--c'+(i+1)),borderWidth:2.5,pointRadius:3.5,tension:.25}))},options:{scales:axes({yfmt:rs}),interaction:{mode:'index',intersect:false},plugins:{tooltip:tip(rs),legend:{display:true,labels:{usePointStyle:true,boxWidth:8,color:css('--ink2')}}}}});
+ const avgm=MON.map((_,m)=>{const v=yrs.map(y=>full(y,m)).filter(x=>x);return v.length?v.reduce((s,x)=>s+x,0)/v.length:0});
+ const ord=avgm.map((v,i)=>[i,v]).filter(x=>x[1]).sort((a,b)=>b[1]-a[1]);
+ document.getElementById('t5').innerHTML=`Strongest months on average: <b>${ord.slice(0,3).map(x=>MON[x[0]]).join(', ')}</b>. Softest: <b>${ord.slice(-3).reverse().map(x=>MON[x[0]]).join(', ')}</b>. A year-on-year line sitting above the others means that year beat the same month before.`;
+}});
+
+</script>
+</body>
+</html>

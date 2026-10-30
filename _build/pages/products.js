@@ -1,0 +1,82 @@
+// Products
+const {rs,rsf,inr,pc,pill,kpis,chart,axes,tip,D,F,css,S,table,openItem,openGroup,grpIcon,rateTxt,esc,catChip,brandChip,prodImg}=App;
+const PB=[50,100,250,500,1000,3000],PL=['< ₹50','₹50–100','₹100–250','₹250–500','₹500–1,000','₹1,000–3,000','₹3,000+'];
+const pb=p=>{for(let i=0;i<PB.length;i++)if(p<PB[i])return i;return PB.length};
+let q='',fc='',fs='',lim=100,view='grp';
+App.page({title:'Products',sub:'Every product — the same name sold at different rates is grouped into one product with its rate variants',show:false,
+build(){return `<div class="kpis" id="kp"></div>
+<div class="grid">
+ <div class="card s12 rv"><div class="ch"><div><h2>Product ranking</h2><div class="cap" id="vcap"></div></div><div class="sp"></div>
+  <div class="seg" id="vseg"><button data-v="grp">Products</button><button data-v="item">Each rate (item code)</button></div></div>
+  <div class="tools"><input id="q" placeholder="Search product, POS name or item code"><select id="fc"><option value="">All website sections</option>${D.siteCats.map((c,i)=>`<option value="${i}">${esc(c)}</option>`).join('')}</select><select id="fs"><option value="">All categories (Google feed)</option>${D.cats.map((c,i)=>`<option value="${i}">${esc(c)}</option>`).join('')}</select>
+   <select id="lim"><option value="50">Top 50</option><option value="100" selected>Top 100</option><option value="300">Top 300</option><option value="1000">Top 1,000</option><option value="99999">All</option></select></div>
+  <div class="scroll t"><table id="tp"></table></div></div>
+ <div class="card s12 rv"><div class="ch"><div><h2>Products sold at many rates</h2><div class="cap">Same product, different rate variants. Shows which rate customers pick most — click a product for every rate.</div></div></div><div class="tk" id="tm"></div><div class="scroll"><table id="tmr"></table></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Concentration (Pareto)</h2><div class="cap">What share of sales comes from the top share of products</div></div></div><div class="tk" id="t1"></div><div class="pl"><canvas id="cP"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>ABC classification</h2><div class="cap">A = products making the first 80% of sales · B = next 15% · C = last 5%</div></div></div><table id="abc"></table><div class="note">Use this to decide where to hold deep stock (A), where to keep a normal range (B) and where to trim (C).</div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Sales by rate band</h2><div class="cap">Selling rate of each item code</div></div></div><div class="tk" id="t2"></div><div class="pl"><canvas id="cPB"></canvas></div></div>
+ <div class="card s6 rv"><div class="ch"><div><h2>Units by rate band</h2><div class="cap">What customers actually pick up</div></div></div><div class="pl"><canvas id="cPU"></canvas></div></div>
+ <div class="card s6 rv" id="gcard"><div class="ch"><h2>Biggest gainers vs B</h2></div><table id="tg"></table></div>
+ <div class="card s6 rv" id="lcard"><div class="ch"><h2>Biggest decliners vs B</h2></div><table id="tl"></table></div>
+</div>`},
+update(A,B){
+ document.querySelectorAll('#vseg [data-v]').forEach(b=>{b.classList.toggle('on',b.dataset.v===view);b.onclick=()=>{view=b.dataset.v;App.cur._run(true)}});
+ document.getElementById('vcap').textContent=view==='grp'?'One row per product (rates combined) · click a row for every rate, the most popular rate and stock':'One row per item code (each rate is its own row) · click a row for its history';
+ // ---- build rows (products or item codes)
+ const gi={};Object.entries(A.items).forEach(([k,v])=>{const it=D.items[k],g=it[F.grp],x=gi[g]||(gi[g]={items:[],q:0,a:0});x.items.push([Math.round(it[F.mrp]||(v[0]?v[1]/v[0]:0)),v[0],v[1],+k]);x.q+=v[0];x.a+=v[1]});
+ const gb={};if(B)Object.entries(B.items).forEach(([k,v])=>{const g=D.items[k][F.grp];gb[g]=(gb[g]||0)+v[1]});
+ const gstock={};D.items.forEach(it=>{gstock[it[F.grp]]=(gstock[it[F.grp]]||0)+it[F.net]});
+ let rows;
+ if(view==='grp'){rows=Object.entries(gi).map(([g,x])=>{const G=D.groups[+g];const byR={};x.items.forEach(i=>{byR[i[0]]=(byR[i[0]]||0)+i[1]});const best=Object.entries(byR).sort((p,q2)=>q2[1]-p[1])[0];
+   return {k:+g,name:G[0],site:G[1],cat:D.items[x.items[0][3]][F.cat],nrate:Object.keys(byR).length,tot:G[2],lo:G[3],hi:G[4],q:x.q,a:x.a,p:x.q?x.a/x.q:0,best:+best[0],bshare:x.q?best[1]/x.q*100:0,b:gb[g]||0,st:gstock[g]||0}}).sort((x,y)=>y.a-x.a)}
+ else{rows=Object.entries(A.items).map(([k,v])=>{const it=D.items[k];return {k:+k,name:it[F.name],site:D.groups[it[F.grp]][1],cat:it[F.cat],pos:it[F.pos],code:it[F.code],q:v[0],a:v[1],p:v[0]?v[1]/v[0]:0,b:B&&B.items[k]?B.items[k][1]:0,st:it[F.net],brand:it[F.brand],it}}).sort((x,y)=>y.a-x.a)}
+ const tot=A.sales||1;let c=0;rows.forEach((r,i)=>{c+=r.a;r.rank=i+1;r.sh=r.a/tot*100;r.cum=c/tot*100});
+ const N=rows.length,nA=rows.filter(r=>r.cum-r.sh<80).length,nB=rows.filter(r=>r.cum-r.sh>=80&&r.cum-r.sh<95).length,nC=N-nA-nB;
+ const top10=rows.slice(0,10).reduce((s,r)=>s+r.a,0)/tot*100;
+ const grows=view==='grp'?rows:Object.entries(gi).map(([g,x])=>({k:+g,a:x.a,nrate:new Set(x.items.map(i=>i[0])).size}));
+ const multi=Object.values(gi).filter(x=>new Set(x.items.map(i=>i[0])).size>1).length;
+ kpis(document.getElementById('kp'),[
+  {l:'Products sold',v:x=>new Set(Object.keys(x.items).map(k=>D.items[k][F.grp])).size,f:inr,cls:'hl',sub:inr(Object.keys(A.items).length)+' item codes (rates)'},
+  {l:'Rates per product',v:x=>{const s=new Set(Object.keys(x.items).map(k=>D.items[k][F.grp]));return s.size?Object.keys(x.items).length/s.size:0},f:v=>v.toFixed(1),neutral:true},
+  {l:'Sold at 2+ rates',v:x=>{const m={};Object.keys(x.items).forEach(k=>{const g=D.items[k][F.grp];(m[g]||(m[g]=new Set())).add(Math.round(D.items[k][F.mrp]))});return Object.values(m).filter(s=>s.size>1).length},f:inr,neutral:true,sub:'products with rate variants'},
+  {l:'Top 10 share of sales',v:x=>{const a=Object.values(x.items).map(v=>v[1]).sort((p,q2)=>q2-p);return a.slice(0,10).reduce((s,v)=>s+v,0)/(x.sales||1)*100},f:v=>v.toFixed(1)+'%',neutral:true},
+  {l:'"A" products (80% of sales)',v:x=>nA,f:inr,neutral:true,cmp:false,sub:'in this view'},
+  {l:'In stock, no sale in period',v:x=>D.items.filter((it,k)=>it[F.instock]&&it[F.net]>0&&!x.items[k]).length,f:inr,neutral:true,lower:true,sub:'item codes'}],A,B);
+ // ---- table
+ const draw=()=>{
+  const ql=q.toLowerCase();
+  const rr=rows.filter(r=>(!fc||r.site==fc)&&(!fs||r.cat==fs)&&(!ql||r.name.toLowerCase().includes(ql)||(r.pos||'').toLowerCase().includes(ql)||r.code===q||(view==='grp'&&(GI[r.k]||[]).some(k=>D.items[k][F.pos].toLowerCase().includes(ql)||D.items[k][F.code]===q))));
+  const common=[{k:'q',t:'Units',f:inr},{k:'a',t:'Sales',f:rs,bar:1},{k:'sh',t:'Share',f:v=>v.toFixed(2)+'%'}];
+  const tail=[...(B?[{k:'b',t:'B sales',f:rs},{k:'d',t:'Δ',s:r=>r.b?(r.a-r.b)/r.b*100:1e9,f:(v,r)=>r.b?pill(r.a,r.b):'<span class="pill nu">new</span>'}]:[]),{k:'st',t:'Stock now',f:v=>`<span class="${v<0?'neg':''}">${inr(v)}</span>`}];
+  const cols=view==='grp'?[{k:'rank',t:'#',w:'46px'},{k:'name',t:'Product',str:1,cls:'l',f:(_,r)=>`<div class="pn">${grpIcon(r.k,36)}<div><b>${esc(r.name)}</b><small>${esc(D.siteCats[r.site])} · ${r.tot>1?r.nrate+' of '+r.tot+' rates sold · ':''}${rateTxt(r.k)}</small></div></div>`},
+    {k:'best',t:'Top rate',f:(v,r)=>r.nrate>1?`<b style="font-weight:600">₹${inr(v)}</b> <span class="mute">${r.bshare.toFixed(0)}%</span>`:'₹'+inr(v)},...common,{k:'p',t:'Avg rate',f:rsf},...tail]
+   :[{k:'rank',t:'#',w:'46px'},{k:'name',t:'Item code',str:1,cls:'l',f:(_,r)=>`<div class="pn">${prodImg(r.it,36)}<div><b>${esc(r.name)}</b><small>${esc(D.cats[r.cat])}${r.pos!==r.name?' · POS: '+esc(r.pos):''}</small></div></div>`},
+    {k:'br',t:'Brand',str:1,s:r=>D.brands[r.brand]||'~',cls:'l',f:(_,r)=>brandChip(r.brand)},...common,{k:'p',t:'Avg rate',f:rsf},...tail];
+  table('tp',{sort:'a',rows:rr,limit:lim,onRow:r=>view==='grp'?openGroup(r.k):openItem(r.k),foot:true,cols});
+ };
+ const bind=(id,fn)=>{const e=document.getElementById(id);e.oninput=()=>{fn(e.value);draw()}};
+ bind('q',v=>q=v);bind('fc',v=>fc=v);bind('fs',v=>fs=v);bind('lim',v=>lim=+v);draw();
+ // ---- many-rates table (products with 3+ rates sold in period)
+ const mr=Object.entries(gi).map(([g,x])=>{const byR={};x.items.forEach(i=>{byR[i[0]]=(byR[i[0]]||0)+i[1]});const rs_=Object.keys(byR).map(Number).sort((a,b)=>a-b);if(rs_.length<3)return null;
+   const best=rs_.slice().sort((a,b)=>byR[b]-byR[a])[0];return {k:+g,name:D.groups[+g][0],site:D.groups[+g][1],n:rs_.length,lo:rs_[0],hi:rs_[rs_.length-1],best,bs:byR[best]/x.q*100,q:x.q,a:x.a,ladder:rs_.slice(0,8).map(r=>'₹'+inr(r)).join(' · ')+(rs_.length>8?' …':'')}}).filter(Boolean);
+ document.getElementById('tm').innerHTML=mr.length?`<b>${inr(mr.length)}</b> products sold at 3 or more rates this period. For most of them one rate takes the bulk of units — stock deep on that rate and keep the others thin.`:'No product sold at 3+ rates in this period.';
+ table('tmr',{sort:'a',rows:mr,limit:20,foot:true,onRow:r=>openGroup(r.k),cols:[{k:'name',t:'Product',str:1,cls:'l',f:(_,r)=>`<div class="pn">${grpIcon(r.k,34)}<div><b>${esc(r.name)}</b><small>${esc(D.siteCats[r.site])}</small></div></div>`},{k:'n',t:'Rates sold'},{k:'lo',t:'Lowest',f:v=>'₹'+inr(v)},{k:'hi',t:'Highest',f:v=>'₹'+inr(v)},{k:'best',t:'Most popular',f:(v,r)=>`<b style="font-weight:600">₹${inr(v)}</b> <span class="mute">${r.bs.toFixed(0)}%</span>`},{k:'q',t:'Units',f:inr},{k:'a',t:'Sales',f:rs,bar:1},{k:'ladder',t:'Rates',str:1,cls:'n l mute'}]});
+ // ---- pareto
+ const pts=[],step=Math.max(1,Math.floor(N/120));for(let i=0;i<N;i+=step)pts.push({x:(i+1)/N*100,y:rows[i].cum});pts.push({x:100,y:100});
+ chart('cP',{type:'line',data:{datasets:[{label:'Cumulative share of sales',data:[{x:0,y:0}].concat(pts),borderColor:css('--a'),backgroundColor:css('--a')+'22',fill:true,borderWidth:2.5,pointRadius:0,tension:.2}]},options:{parsing:false,scales:{x:{type:'linear',min:0,max:100,grid:{display:false},border:{display:false},ticks:{color:css('--mute'),callback:v=>v+'%'},title:{display:true,text:'Share of '+(view==='grp'?'products':'item codes')+' (best sellers first)',color:css('--mute')}},y:{min:0,max:100,grid:{color:css('--line')},border:{display:false},ticks:{color:css('--mute'),callback:v=>v+'%'}}},plugins:{tooltip:{callbacks:{title:()=>'',label:c=>` Top ${c.parsed.x.toFixed(0)}% = ${c.parsed.y.toFixed(0)}% of sales`}}}}});
+ document.getElementById('t1').innerHTML=N?`<b>${inr(nA)}</b> ${view==='grp'?'products':'item codes'} (${(nA/N*100).toFixed(0)}%) make 80% of sales. The 10 best sellers alone are <b>${top10.toFixed(1)}%</b>.`:'—';
+ const sA=rows.filter(r=>r.cum-r.sh<80).reduce((s,r)=>s+r.a,0),sB=rows.filter(r=>r.cum-r.sh>=80&&r.cum-r.sh<95).reduce((s,r)=>s+r.a,0);
+ table('abc',{sort:'c',dir:1,rows:[{c:'A',n:nA,s:sA,d:'Core sellers — never run out'},{c:'B',n:nB,s:sB,d:'Steady range'},{c:'C',n:nC,s:tot-sA-sB,d:'Long tail — review'}],cols:[{k:'c',t:'Class',str:1,f:v=>`<span class="tag">${v}</span>`},{k:'n',t:'Count',f:inr},{k:'sp',t:'% of count',s:r=>r.n/(N||1)*100,f:v=>v.toFixed(0)+'%'},{k:'s',t:'Sales',f:rs,bar:1},{k:'ss',t:'% of sales',s:r=>r.s/tot*100,f:v=>v.toFixed(0)+'%'},{k:'d',t:'Meaning',str:1,cls:'n l mute'}]});
+ // ---- rate bands (item-code level)
+ const pa=Array(7).fill(0),pu=Array(7).fill(0),pb2=Array(7).fill(0);
+ Object.entries(A.items).forEach(([k,v])=>{const i=pb(v[0]?v[1]/v[0]:0);pa[i]+=v[1];pu[i]+=v[0]});if(B)Object.entries(B.items).forEach(([k,v])=>{pb2[pb(v[0]?v[1]/v[0]:0)]+=v[1]});
+ chart('cPB',{type:'bar',data:{labels:PL,datasets:[{label:'A',data:pa,backgroundColor:App.colA(),borderRadius:6,borderSkipped:false}].concat(B?[{label:'B',data:pb2,backgroundColor:App.colB(),borderRadius:6,borderSkipped:false}]:[])},options:{scales:axes({yfmt:rs}),plugins:{tooltip:tip(rs)}}});
+ chart('cPU',{type:'bar',data:{labels:PL,datasets:[{label:'Units',data:pu,backgroundColor:css('--c1'),borderRadius:6,borderSkipped:false}]},options:{scales:axes({yfmt:inr}),plugins:{tooltip:tip(inr)}}});
+ const mi=pa.indexOf(Math.max(...pa));document.getElementById('t2').innerHTML=`<b>${PL[mi]}</b> items bring the most sales (${(pa[mi]/tot*100).toFixed(0)}%); items under ₹250 are <b>${((pu[0]+pu[1]+pu[2])/(A.units||1)*100).toFixed(0)}%</b> of units but only <b>${((pa[0]+pa[1]+pa[2])/tot*100).toFixed(0)}%</b> of sales.`;
+ // ---- movers (products)
+ document.getElementById('gcard').style.display=document.getElementById('lcard').style.display=B?'':'none';
+ if(B){const ks=new Set([...Object.keys(A.grp),...Object.keys(B.grp)]);const mv=[...ks].map(g=>({k:+g,a:A.grp[g]?A.grp[g][0]:0,b:B.grp[g]?B.grp[g][0]:0})).map(r=>({...r,d:r.a-r.b}));
+  const cols=[{k:'n',t:'Product',str:1,s:r=>D.groups[r.k][0],cls:'l',f:(_,r)=>`<div class="pn">${grpIcon(r.k,30)}<div><b>${esc(D.groups[r.k][0])}</b></div></div>`},{k:'a',t:'A',f:rs},{k:'b',t:'B',f:rs},{k:'d',t:'Change',f:v=>`<span class="${v>=0?'pos':'neg'}">${v>=0?'+':''}${rs(v)}</span>`,bar:1}];
+  table('tg',{sort:'d',rows:mv,limit:10,onRow:r=>openGroup(r.k),cols});table('tl',{sort:'d',dir:1,rows:mv,limit:10,onRow:r=>openGroup(r.k),cols})}
+}});
+const GI={};D.items.forEach((it,k)=>{(GI[it[F.grp]]||(GI[it[F.grp]]=[])).push(k)});

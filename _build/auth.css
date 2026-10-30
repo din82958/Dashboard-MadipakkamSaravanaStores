@@ -1,0 +1,24 @@
+
+/* ---------- sign-in ---------- */
+.lg-bg{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(900px 500px at 15% 0%,var(--tonal),transparent 60%),radial-gradient(800px 500px at 100% 100%,color-mix(in srgb,var(--b) 14%,transparent),transparent 60%),var(--bg)}
+.lg-card{width:min(400px,100%);background:var(--card);border:1px solid var(--line);border-radius:24px;padding:30px 28px 22px;box-shadow:0 8px 30px rgba(60,64,67,.15);animation:popin .35s ease-out}
+.lg-card.shake{animation:shake .4s}
+.lg-logo{width:190px;display:block;margin:0 auto 14px}
+:root[data-theme="dark"] .lg-logo{filter:brightness(0) invert(.92)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lg-logo{filter:brightness(0) invert(.92)}}
+.lg-card h1{font-size:24px;font-weight:500;margin:6px 0 2px;text-align:center}
+.lg-s{color:var(--mute);font-size:13.5px;text-align:center;margin:0 0 18px}
+.lg-card label{display:block;font-size:12.5px;color:var(--mute);font-weight:500;margin-bottom:12px}
+.lg-card input[type=text],.lg-card input[type=password],.lg-card input:not([type]){display:block;width:100%;height:46px;margin-top:5px;font-size:16px;border-radius:12px;padding:0 14px}
+.lg-pw{display:block;position:relative}.lg-pw input{padding-right:46px!important}
+.lg-pw button{position:absolute;right:6px;bottom:4px;width:38px;height:38px;border:0;background:transparent;border-radius:50%;display:grid;place-items:center;color:var(--mute);padding:0}
+.lg-pw button:hover{background:var(--soft)}.lg-pw svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lg-card label.lg-k{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2);font-weight:400;margin:2px 0 8px}
+.lg-k input{width:18px;height:18px;margin:0;accent-color:var(--a)}
+.lg-e{min-height:20px;color:var(--neg);font-size:13px;margin-bottom:6px;text-align:center}
+.lg-go{width:100%;height:46px;border:0;border-radius:23px;background:var(--a);color:#fff;font-size:15px;font-weight:600;transition:box-shadow .2s,transform .1s}
+:root[data-theme="dark"] .lg-go{color:#0d1b33}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lg-go{color:#0d1b33}}
+.lg-go:hover{box-shadow:0 2px 10px color-mix(in srgb,var(--a) 50%,transparent)}.lg-go:active{transform:scale(.99)}
+.lg-f{text-align:center;color:var(--mute);font-size:12px;margin:16px 0 0}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.so{display:flex;align-items:center;gap:8px;margin-top:10px;border:0;background:var(--soft);color:var(--ink2);height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:500}.so:hover{background:var(--tonal);color:var(--tonal-ink)}
+.so svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
